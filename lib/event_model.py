@@ -24,10 +24,12 @@ class Event:
     start: Timestamp
     end: Timestamp
 
-    def run(self, input_data: BoatInputData, boat: Boat, energy_controller: EnergyController) -> EventResult:
+    def run(
+        self, input_data: BoatInputData, boat: Boat, energy_controller: EnergyController
+    ) -> EventResult:
         # Transform time vector to seconds
         t = input_data.time.astype(int64)
-        t = ((t - t[0]) * 1e-9)
+        t = (t - t[0]) * 1e-9
 
         output_data = BoatOutputData(
             battery_output_energy=np.zeros(t.size, dtype=float64),
@@ -37,19 +39,18 @@ class Event:
             pv_target_power=np.zeros(t.size, dtype=float64),
             motor_target_power=np.zeros(t.size, dtype=float64),
             battery_target_power=np.zeros(t.size, dtype=float64),
-            motor_target_throttle=np.zeros(t.size, dtype=float64)
+            motor_target_throttle=np.zeros(t.size, dtype=float64),
         )
 
         dt: int64 = t[1] - t[0]
         for k in range(t.size):
             if k > 0:
-                dt = t[k] - t[k-1]
+                dt = t[k] - t[k - 1]
 
             control = energy_controller.run(
                 dt=float(dt),
                 input_data=BoatInputData(
-                    time=input_data.time[k],
-                    poa=input_data.poa[k]
+                    time=input_data.time[k], poa=input_data.poa[k]
                 ),
                 output_data=BoatOutputData(
                     battery_output_energy=output_data.battery_output_energy[k],
@@ -59,9 +60,9 @@ class Event:
                     pv_target_power=output_data.pv_target_power[k],
                     motor_target_power=output_data.motor_target_power[k],
                     battery_target_power=output_data.battery_target_power[k],
-                    motor_target_throttle=output_data.motor_target_throttle[k]
+                    motor_target_throttle=output_data.motor_target_throttle[k],
                 ),
-                boat=boat
+                boat=boat,
             )
 
             y = boat.run(float(dt), input_data.poa[k], control)
@@ -75,4 +76,6 @@ class Event:
             output_data.battery_target_power[k] = y[6]
             output_data.motor_target_throttle[k] = y[7]
 
-        return EventResult(name=self.name, input_data=input_data, output_data=output_data)
+        return EventResult(
+            name=self.name, input_data=input_data, output_data=output_data
+        )

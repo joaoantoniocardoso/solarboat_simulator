@@ -6,12 +6,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def naive_power(energy: float, time: float, timebase: float = 1.) -> float:
+def naive_power(energy: float, time: float, timebase: float = 1.0) -> float:
     """energy [Wh], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in seconds"""
     return np.divide(energy, time / timebase)
 
 
-def naive_energy(power: float, time: float, timebase: float = 1.) -> float:
+def naive_energy(power: float, time: float, timebase: float = 1.0) -> float:
     """power [W], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in seconds"""
     return power * (time / timebase)
 
@@ -73,7 +73,7 @@ def open_forecast_files(forecast_files: list[str], event: dict) -> pd.DataFrame:
         df_tmp = open_forecast_file(forecast_files[i])
         df_tmp = df_tmp.loc[df_tmp.index <= df.index[-1]]
         df.loc[df.index >= df_tmp.index[0]] = df_tmp
-    return df[event["time"]["start"]: event["time"]["end"]][:-1]
+    return df[event["time"]["start"] : event["time"]["end"]][:-1]
 
 
 def plot_radiation_and_irradiance(
@@ -128,15 +128,13 @@ def plot_energy_bars(
     plt.Figure()
 
     sns.barplot(
-        x=np.datetime_as_string(ideal_data.resample(
-            "D").mean().index.values, unit="D"),
+        x=np.datetime_as_string(ideal_data.resample("D").mean().index.values, unit="D"),
         y=ideal_data.resample("D").mean()["poa"],
         label="Clearsky Model",
         color=sns.color_palette("light:b")[2],
     )
     sns.barplot(
-        x=np.datetime_as_string(real_data.resample(
-            "D").mean().index.values, unit="D"),
+        x=np.datetime_as_string(real_data.resample("D").mean().index.values, unit="D"),
         y=real_data.resample("D").mean()["poa"],
         # yerr=[
         #     real_data.resample('D').mean()['poa10'],

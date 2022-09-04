@@ -1,6 +1,7 @@
-from dataclasses import dataclass
 from numpy.typing import NDArray
 from numpy import float64, timedelta64
+
+from dataclasses import dataclass
 
 
 @dataclass
