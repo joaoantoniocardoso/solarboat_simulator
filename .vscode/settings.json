@@ -1,12 +1,11 @@
 {
-    "python.analysis.completeFunctionParens": true,
-    "python.analysis.diagnosticMode": "openFilesOnly",
-    "python.analysis.inlayHints.functionReturnTypes": true,
-    "python.analysis.inlayHints.variableTypes": true,
-    "python.analysis.typeCheckingMode": "basic",
-    "mypy.runUsingActiveInterpreter": true,
-    "python.linting.mypyEnabled": true,
-    "python.linting.enabled": true,
-    "python.linting.pylintEnabled": true,
-    "python.formatting.provider": "black"
+  "python.analysis.completeFunctionParens": true,
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "python.analysis.inlayHints.variableTypes": true,
+  "python.analysis.typeCheckingMode": "basic",
+  "mypy.runUsingActiveInterpreter": true,
+  "python.linting.enabled": true,
+  "python.formatting.provider": "black",
+  "python.linting.pylamaEnabled": true,
 }

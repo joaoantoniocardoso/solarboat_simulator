@@ -2,6 +2,7 @@ import numpy as np
 from numpy.typing import NDArray
 from numpy import datetime64
 from pandas import Timestamp
+
 from dataclasses import dataclass
 
 from lib.boat_model import Boat
@@ -37,12 +38,11 @@ class Competition:
             raise ValueError("Given data can't end before the first event's end.")
 
         # Select the competition simulation input data
-        competition_time_selection: NDArray[np.bool_] = (
-            input_data.time >= competition_start
-        ) & (input_data.time <= competition_end)
+        selection: NDArray[np.bool_] = (input_data.time >= competition_start) & (
+            input_data.time <= competition_end
+        )
         input_data = BoatInputData(
-            time=input_data.time[competition_time_selection],
-            poa=input_data.poa[competition_time_selection],
+            time=input_data.time[selection], poa=input_data.poa[selection]
         )
 
         results: list[EventResult] = []
@@ -55,8 +55,7 @@ class Competition:
                 input_data.time <= event_end
             )
             event_input_data = BoatInputData(
-                time=input_data.time[event_time_selection],
-                poa=input_data.poa[event_time_selection],
+                time=input_data.time[selection], poa=input_data.poa[selection]
             )
             results.append(
                 event.run(event_input_data, boat, energy_controller=energy_controller)

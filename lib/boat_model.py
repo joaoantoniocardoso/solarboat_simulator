@@ -1,6 +1,6 @@
 import numpy as np
+
 from dataclasses import dataclass
-from numpy import float64, ndarray, dtype
 
 from lib.utils import naive_power, naive_energy
 
@@ -82,7 +82,7 @@ class Battery:
         return power
 
     def run(self, dt: float, target_power: float) -> float:
-        power = 0.
+        power = 0.0
         if target_power > 0:
             power = self._charge(dt, abs(target_power))
         else:
