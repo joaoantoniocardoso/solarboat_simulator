@@ -6,6 +6,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
+def naive_power(energy: float, time: float, timebase: float = 1.) -> float:
+    """energy [Wh], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in seconds"""
+    return np.divide(energy, time / timebase)
+
+
+def naive_energy(power: float, time: float, timebase: float = 1.) -> float:
+    """power [W], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in seconds"""
+    return power * (time / timebase)
+
+
 def integrate(df: pd.DataFrame, time_constant: int = 3600) -> pd.DataFrame:
     """
     Integrates a datetime indexed dataframe relative to a time_constant (3600
