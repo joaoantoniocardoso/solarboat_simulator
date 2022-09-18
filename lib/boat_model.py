@@ -1,4 +1,3 @@
-from bdb import effective
 import numpy as np
 
 from dataclasses import dataclass
@@ -158,7 +157,9 @@ class Boat:
     propulsion: Propulsion
     hull: Hull
 
-    def run(self, dt: float, irradiation: float, motor_throttle: float):
+    def run(
+        self, dt: float, irradiation: float, motor_throttle: float
+    ) -> BoatOutputData:
         # TODO: Create exeption types and throw then in case of battery under or over voltage. This battery exception might be implemented as a BMS model, which could be disabled.
         # TODO: Create some way to programatically inject an exception, to simulate catastrophic events like crashes, which could take the boat off the race.
 
@@ -203,17 +204,17 @@ class Boat:
         actual_hull_speed = self.hull.solve_output(actual_propulsive_output_power)
 
         return BoatOutputData(
-            pv_output_power=np.array([actual_pv_output_power]),
-            battery_stored_energy=np.array([self.battery.energy]),
-            battery_soc=np.array([self.battery.soc]),
-            battery_output_power=np.array([actual_battery_power]),
-            esc_input_power=np.array([actual_esc_input_power]),
-            esc_output_power=np.array([actual_esc_output_power]),
-            motor_output_power=np.array([actual_esc_output_power]),
-            propulsive_output_power=np.array([actual_propulsive_output_power]),
-            hull_speed=np.array([actual_hull_speed]),
-            pv_target_power=np.array([target_pv_output_power]),
-            esc_target_power=np.array([target_battery_power]),
-            battery_target_power=np.array([target_esc_input_power]),
-            motor_target_throttle=np.array([motor_throttle]),
+            pv_output_power=actual_pv_output_power,
+            battery_stored_energy=self.battery.energy,
+            battery_soc=self.battery.soc,
+            battery_output_power=actual_battery_power,
+            esc_input_power=actual_esc_input_power,
+            esc_output_power=actual_esc_output_power,
+            motor_output_power=actual_esc_output_power,
+            propulsive_output_power=actual_propulsive_output_power,
+            hull_speed=actual_hull_speed,
+            pv_target_power=target_pv_output_power,
+            esc_target_power=target_battery_power,
+            battery_target_power=target_esc_input_power,
+            motor_target_throttle=motor_throttle,
         )
