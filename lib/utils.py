@@ -21,15 +21,15 @@ def integrate(df: pd.DataFrame, time_constant: int = 3600) -> pd.DataFrame:
     Integrates a datetime indexed dataframe relative to a time_constant (3600
     to return in hours)
     """
-    if df.index.freq is None:
-        df.index.freq = pd.infer_freq(df.index)
-    if df.index.freq is None:
+    if df.index.freq is None:  # type: ignore
+        df.index.freq = pd.infer_freq(df.index)  # type: ignore
+    if df.index.freq is None:  # type: ignore
         raise Exception("Failed infering frequency!")
     return df.apply(
         sp.integrate.cumtrapz,
         initial=0,
-        dx=((df.index.freq.nanos * 1e-9) / time_constant),
-    )
+        dx=((df.index.freq.nanos * 1e-9) / time_constant),  # type: ignore
+    )  # type: ignore
 
 
 def get_irradiance(site_location, tilt, surface_azimuth, weather_data):
@@ -71,21 +71,21 @@ def open_forecast_files(forecast_files: list[str], event: dict) -> pd.DataFrame:
     df = open_forecast_file(forecast_files[0])
     for i in range(1, len(forecast_files)):
         df_tmp = open_forecast_file(forecast_files[i])
-        df_tmp = df_tmp.loc[df_tmp.index <= df.index[-1]]
-        df.loc[df.index >= df_tmp.index[0]] = df_tmp
+        df_tmp = df_tmp.loc[df_tmp.index <= df.index[-1]]  # type: ignore
+        df.loc[df.index >= df_tmp.index[0]] = df_tmp  # type: ignore
     return df[event["time"]["start"] : event["time"]["end"]][:-1]
 
 
 def plot_radiation_and_irradiance(
     ideal_data: pd.DataFrame, real_data: pd.DataFrame, site: location.Location
 ):
-    plt.Figure()
+    plt.Figure()  # type: ignore
     ideal_data["poa"].plot(label="Clearsky Model")
     real_data["poa"].plot(label="Solcast Forecast")
     plt.fill_between(
         real_data.index,
-        real_data["poa10"],
-        real_data["poa90"],
+        real_data["poa10"],  # type: ignore
+        real_data["poa90"],  # type: ignore
         color="orange",
         alpha=0.3,
         label="10 to 90 percentile",
@@ -100,13 +100,13 @@ def plot_radiation_and_irradiance(
     plt.legend()
     plt.show()
 
-    plt.Figure()
+    plt.Figure()  # type: ignore
     ideal_data["Solar Energy"].plot(label="Clearsky Model")
     real_data["Solar Energy"].plot(label="Solcast Forecast")
     plt.fill_between(
         real_data.index,
-        real_data["Solar Energy10"],
-        real_data["Solar Energy90"],
+        real_data["Solar Energy10"],  # type: ignore
+        real_data["Solar Energy90"],  # type: ignore
         color="orange",
         alpha=0.3,
         label="10 to 90 percentile",
@@ -125,13 +125,13 @@ def plot_radiation_and_irradiance(
 def plot_energy_bars(
     ideal_data: pd.DataFrame, real_data: pd.DataFrame, site: location.Location
 ):
-    plt.Figure()
+    plt.Figure()  # type: ignore
 
     sns.barplot(
         x=np.datetime_as_string(ideal_data.resample("D").mean().index.values, unit="D"),
         y=ideal_data.resample("D").mean()["poa"],
         label="Clearsky Model",
-        color=sns.color_palette("light:b")[2],
+        color=sns.color_palette("light:b")[2],  # type: ignore
     )
     sns.barplot(
         x=np.datetime_as_string(real_data.resample("D").mean().index.values, unit="D"),
@@ -141,7 +141,7 @@ def plot_energy_bars(
         #     real_data.resample('D').mean()['poa90'],
         # ],
         label="Solcast Forecast",
-        color=sns.color_palette("light:b")[5],
+        color=sns.color_palette("light:b")[5],  # type: ignore
     )
     plt.ylabel("Irradiance ($W/m^2$)")
     plt.xlabel("Time ({})".format(site.tz))
