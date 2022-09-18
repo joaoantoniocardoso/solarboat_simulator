@@ -1,6 +1,8 @@
+from bdb import effective
 import numpy as np
 
 from dataclasses import dataclass
+from .boat_data import BoatOutputData
 
 from lib.utils import naive_power, naive_energy
 
@@ -9,26 +11,16 @@ from lib.utils import naive_power, naive_energy
 class Panel:
     efficiency: float
     area: float
-    mppt_maximum_power: float
+    maximum_output_power: float
 
-    def run(self, irradiation: float) -> float:
-        output_power = irradiation * self.area * self.efficiency
-        if output_power > self.mppt_maximum_power:
-            output_power = self.mppt_maximum_power
+    def solve_output(self, irradiation: float) -> float:
+        input_power = irradiation * self.area
+
+        output_power = input_power * self.efficiency
+        if output_power > self.maximum_output_power:
+            output_power = self.maximum_output_power
+
         return output_power
-
-
-@dataclass
-class Motor:
-    maximum_power: float
-
-    def run(self, throttle: float) -> float:
-        throttle = np.clip(throttle, 0, 1)
-
-        input_power = throttle * self.maximum_power
-        if input_power > self.maximum_power:
-            input_power = self.maximum_power
-        return input_power
 
 
 @dataclass(init=False)
@@ -81,7 +73,7 @@ class Battery:
 
         return power
 
-    def run(self, dt: float, target_power: float) -> float:
+    def solve(self, dt: float, target_power: float) -> float:
         power = 0.0
         if target_power > 0:
             power = self._charge(dt, abs(target_power))
@@ -98,51 +90,130 @@ class Other:
 
 
 @dataclass
+class ESC:
+    efficiency: float
+    maximum_input_power: float
+
+    def solve_input(self, throttle: float) -> float:
+        throttle = np.clip(throttle, 0, 1)
+
+        input_power = throttle * self.maximum_input_power
+        if input_power > self.maximum_input_power:
+            input_power = self.maximum_input_power
+
+        return input_power
+
+    def solve_output(self, input_power) -> float:
+        output_power = input_power * self.efficiency
+        return output_power
+
+
+@dataclass
+class Motor:
+    efficiency: float
+    maximum_input_power: float
+
+    def solve_input(self, input_power: float) -> float:
+        if input_power > self.maximum_input_power:
+            input_power = self.maximum_input_power
+
+        return input_power
+
+    def solve_output(self, input_power) -> float:
+        output_power = input_power * self.efficiency
+        return output_power
+
+
+@dataclass
+class Propulsion:
+    efficiency: float
+    maximum_input_power: float
+
+    def solve_input(self, input_power: float) -> float:
+        if input_power > self.maximum_input_power:
+            input_power = self.maximum_input_power
+
+        return input_power
+
+    def solve_output(self, input_power) -> float:
+        output_power = input_power * self.efficiency
+        return output_power
+
+
+@dataclass
+class Hull:
+    speed_over_power_constant: float
+
+    def solve_output(self, propulsion_power: float) -> float:
+        return propulsion_power * self.speed_over_power_constant
+
+
+@dataclass
 class Boat:
     panel: Panel
-    motor: Motor
     battery: Battery
     circuits: Other
+    esc: ESC
+    motor: Motor
+    propulsion: Propulsion
+    hull: Hull
 
     def run(self, dt: float, irradiation: float, motor_throttle: float):
         # TODO: Create exeption types and throw then in case of battery under or over voltage. This battery exception might be implemented as a BMS model, which could be disabled.
         # TODO: Create some way to programatically inject an exception, to simulate catastrophic events like crashes, which could take the boat off the race.
 
         # Step #1 - solve for battery:
-        target_circuits_power = self.circuits.power
-        target_pv_power = self.panel.run(irradiation)
-        target_motor_power = self.motor.run(motor_throttle)
-        target_battery_power = (
-            target_pv_power - target_motor_power - target_circuits_power
+        target_circuits_input_power = self.circuits.power
+        target_pv_output_power = self.panel.solve_output(irradiation)
+        target_esc_input_power = self.propulsion.solve_input(
+            self.motor.solve_input(self.esc.solve_input(motor_throttle))
         )
-        actual_battery_power = self.battery.run(dt, target_battery_power)
+        target_battery_power = (
+            target_pv_output_power
+            - target_esc_input_power
+            - target_circuits_input_power
+        )
+        actual_battery_power = self.battery.solve(dt, target_battery_power)
 
         # Step #2 - solve for base circuits
         # if target_circuits_power > actual_battery_power:
         #     raise Exception("There is no power to keep the basic boat's circuits running!")
-        actual_circuits_power = target_circuits_power
+        actual_circuits_input_power = target_circuits_input_power
 
         # Step #3 - solve for pv:
-        actual_pv_power = (
-            actual_battery_power + target_motor_power + actual_circuits_power
+        actual_pv_output_power = (
+            actual_battery_power + target_esc_input_power + actual_circuits_input_power
         )
-        if actual_pv_power > target_pv_power:
-            actual_pv_power = target_pv_power
+        if actual_pv_output_power > target_pv_output_power:
+            actual_pv_output_power = target_pv_output_power
 
         # Step #4 - solve for motor:
-        actual_motor_power = (
-            actual_pv_power - actual_battery_power - actual_circuits_power
+        actual_esc_input_power = (
+            actual_pv_output_power - actual_battery_power - actual_circuits_input_power
         )
-        if actual_motor_power > target_motor_power:
-            actual_motor_power = target_motor_power
+        if actual_esc_input_power > target_esc_input_power:
+            actual_esc_input_power = target_esc_input_power
 
-        return (
-            self.battery.soc,
-            actual_pv_power,
-            actual_motor_power,
-            actual_battery_power,
-            target_pv_power,
-            target_motor_power,
-            target_battery_power,
-            motor_throttle,
+        # Step #5 - propagate the power that moves the boat:
+        actual_esc_output_power = self.esc.solve_output(actual_esc_input_power)
+        actual_motor_output_power = self.motor.solve_output(actual_esc_output_power)
+        actual_propulsive_output_power = self.propulsion.solve_output(
+            actual_motor_output_power
+        )
+        actual_hull_speed = self.hull.solve_output(actual_propulsive_output_power)
+
+        return BoatOutputData(
+            pv_output_power=np.array([actual_pv_output_power]),
+            battery_stored_energy=np.array([self.battery.energy]),
+            battery_soc=np.array([self.battery.soc]),
+            battery_output_power=np.array([actual_battery_power]),
+            esc_input_power=np.array([actual_esc_input_power]),
+            esc_output_power=np.array([actual_esc_output_power]),
+            motor_output_power=np.array([actual_esc_output_power]),
+            propulsive_output_power=np.array([actual_propulsive_output_power]),
+            hull_speed=np.array([actual_hull_speed]),
+            pv_target_power=np.array([target_pv_output_power]),
+            esc_target_power=np.array([target_battery_power]),
+            battery_target_power=np.array([target_esc_input_power]),
+            motor_target_throttle=np.array([motor_throttle]),
         )
