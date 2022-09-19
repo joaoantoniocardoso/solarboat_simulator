@@ -1,76 +1,163 @@
 import numpy as np
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typeguard import typechecked
+
 from numpy import int64
-from pandas import Timestamp, DataFrame
+from pandas import DataFrame, Timestamp, Timedelta
+from strictly_typed_pandas.dataset import DataSet
+
 
 from lib.boat_data import (
+    BoatInputData,
     BoatInputDataSet,
     BoatOutputData,
     BoatOutputDataSet,
 )
-from lib.boat_model import Boat
-from lib.energy_controller_model import EnergyController
+
+
+class RaceStatus:
+    DNS = 0
+    STARTED = 1
+    FINISHED = 2
+    DNF = 3
 
 
 @dataclass
-class EventResult:
+class EventResultData:
+    distance: float
+    elapsed_time: np.timedelta64
+    status: int
+
+
+EventResultDataSet = DataSet[EventResultData]
+
+
+@dataclass
+class EventOutputData:
     name: str
+    event_result: EventResultDataSet
     input_data: BoatInputDataSet
     output_data: BoatOutputDataSet
 
 
+class EventGoal(ABC):
+    @abstractmethod
+    def accomplished(self, event_result: EventResultData) -> bool:
+        ...
+
+
+@dataclass
+class FixedLapsGoal(EventGoal):
+    total_laps: int
+    lap_distance: float
+    total_time: Timedelta
+    _completed_laps: int = 0
+
+    @typechecked
+    def accomplished(self, event_result: EventResultData) -> bool:
+        if event_result.elapsed_time > self.total_time:
+            raise Exception
+
+        self._completed_laps = event_result.distance // self.lap_distance  # type: ignore
+        return self._completed_laps >= self.total_laps
+
+
 @dataclass
 class Event:
+    from lib.boat_model import Boat
+    from lib.energy_controller_model import EnergyController
+
     name: str
     description: str
+    goal: EventGoal
     # route: list[tuple[float, float]]
     start: Timestamp
     end: Timestamp
 
+    @typechecked
     def run(
         self,
         input_data: BoatInputDataSet,
         boat: Boat,
         energy_controller: EnergyController,
-    ) -> EventResult:
+    ) -> EventOutputData:
         # Transform time vector to seconds
         t = input_data.time.to_numpy().astype(int64)
         t = (t - t[0]) * 1e-9
 
-        output_data = np.zeros(t.size, dtype=BoatOutputData)
+        output_data = np.full(
+            shape=t.size,
+            fill_value=BoatOutputData(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+            dtype=BoatOutputData,
+        )
+
+        event_result = np.full(
+            shape=t.size,
+            fill_value=EventResultData(
+                0, Timedelta(0).to_timedelta64(), RaceStatus.DNS
+            ),
+            dtype=EventResultData,
+        )
 
         dt: int64 = t[1] - t[0]
         for k in range(t.size):
-            if k > 0:
-                dt = t[k] - t[k - 1]
+            k_old = max(0, k - 1)
 
-            control = energy_controller.run(
-                dt=float(dt),
-                input_data=input_data.iloc[k],
-                output_data=output_data[k],
-                boat=boat,
+            if k > 0:
+                dt = t[k] - t[k_old]
+
+            status = RaceStatus.DNS
+            try:
+                control = energy_controller.run(
+                    dt=float(dt),
+                    input_data=BoatInputData(**input_data.iloc[k].to_dict()),
+                    output_data=output_data[k_old],
+                    event_result=event_result[k_old],
+                    boat=boat,
+                )
+
+                output_data[k] = boat.run(float(dt), input_data.iloc[k].poa, control)
+
+                if self.goal.accomplished(event_result=event_result[k]):
+                    status = RaceStatus.FINISHED
+                else:
+                    status = RaceStatus.STARTED
+
+            except TypeError as e:
+                raise e
+
+            except Exception as e:
+                old_status = event_result[k_old].status
+                status = RaceStatus.DNF
+                if old_status != RaceStatus.DNF:
+                    print(
+                        f"Boat out of the race, status: {old_status} => {status}. Reason: {e}"
+                    )
+
+            distance = output_data[k].hull_speed * dt
+            elapsed_time = Timedelta(
+                input_data.iloc[k].time - input_data.iloc[0].time
+            ).to_timedelta64()
+
+            event_result[k] = EventResultData(
+                distance=distance,
+                elapsed_time=elapsed_time,
+                status=status,
             )
 
-            output_data[k] = boat.run(float(dt), input_data.iloc[k].poa, control)
+        output_data = DataFrame(list(output_data)).pipe(BoatOutputDataSet)
 
-            """ TODO list:
-                - [ ] Calcular distância do barco
-                - [ ] Criar objetivo e restrições da prova, suportando diferentes tipos de provas:
-                    - [ ] Prova com tempo máximo, distância fixa. Exemplo: prova curta
-                    - [ ] Prova com tempo fixo, distância variável. Exemplo: prova do piloto
-                - [ ] Criar variável para monitorar o estado para o objetivo da prova.
-                    - Started{time},
-                    - DoNotStarted{time, reason}
-                    - Finished{time}
-                    - DoNotFinished{time, reason}
-                - [ ] Se alguma excessão ocorrer com o controller.run ou boat.run, modificar o
-                estado do objetivo da prova.
-                - [ ] O Controlador deve monitorar o estado do objetivo da prova e saber quando
-                deve iniciar a recarga das baterias.
-            """
-        return EventResult(
+        event_result = DataFrame(
+            list(
+                event_result,
+            )
+        ).pipe(EventResultDataSet)
+
+        return EventOutputData(
             name=self.name,
             input_data=input_data,
-            output_data=DataFrame(list(output_data)).pipe(BoatOutputDataSet),
+            output_data=output_data,
+            event_result=event_result,
         )
