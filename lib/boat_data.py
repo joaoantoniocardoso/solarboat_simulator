@@ -1,8 +1,8 @@
+from dataclasses import dataclass
+
 from numpy import datetime64
 
 from strictly_typed_pandas.dataset import DataSet
-
-from dataclasses import dataclass
 
 
 @dataclass

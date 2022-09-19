@@ -1,9 +1,10 @@
 import numpy as np
 
 from dataclasses import dataclass
-from .boat_data import BoatOutputData
+from typeguard import typechecked
 
 from lib.utils import naive_power, naive_energy
+from lib.boat_data import BoatOutputData
 
 
 @dataclass
@@ -12,6 +13,7 @@ class Panel:
     area: float
     maximum_output_power: float
 
+    @typechecked
     def solve_output(self, irradiation: float) -> float:
         input_power = irradiation * self.area
 
@@ -32,6 +34,7 @@ class Battery:
     minimum_energy: float
     maximum_power: float
 
+    @typechecked
     def __init__(
         self,
         soc_0: float,
@@ -48,6 +51,7 @@ class Battery:
         self.minimum_energy = maximum_energy * minimum_soc
         self.maximum_power = maximum_power
 
+    @typechecked
     def _charge(self, dt: float, power: float) -> float:
         energy = naive_energy(power, dt, timebase=3600)
         self.energy += energy * self.efficiency
@@ -60,6 +64,7 @@ class Battery:
 
         return power
 
+    @typechecked
     def _discharge(self, dt: float, power: float) -> float:
         energy = naive_energy(power, dt, timebase=3600)
         self.energy -= energy * self.efficiency
@@ -72,6 +77,7 @@ class Battery:
 
         return power
 
+    @typechecked
     def solve(self, dt: float, target_power: float) -> float:
         power = 0.0
         if target_power > 0:
@@ -93,6 +99,7 @@ class ESC:
     efficiency: float
     maximum_input_power: float
 
+    @typechecked
     def solve_input(self, throttle: float) -> float:
         throttle = np.clip(throttle, 0, 1)
 
@@ -102,6 +109,7 @@ class ESC:
 
         return input_power
 
+    @typechecked
     def solve_output(self, input_power) -> float:
         output_power = input_power * self.efficiency
         return output_power
@@ -112,12 +120,14 @@ class Motor:
     efficiency: float
     maximum_input_power: float
 
+    @typechecked
     def solve_input(self, input_power: float) -> float:
         if input_power > self.maximum_input_power:
             input_power = self.maximum_input_power
 
         return input_power
 
+    @typechecked
     def solve_output(self, input_power) -> float:
         output_power = input_power * self.efficiency
         return output_power
@@ -128,23 +138,29 @@ class Propulsion:
     efficiency: float
     maximum_input_power: float
 
+    @typechecked
     def solve_input(self, input_power: float) -> float:
         if input_power > self.maximum_input_power:
             input_power = self.maximum_input_power
 
         return input_power
 
+    @typechecked
     def solve_output(self, input_power) -> float:
         output_power = input_power * self.efficiency
         return output_power
 
 
+@typechecked
 @dataclass
 class Hull:
     speed_over_power_constant: float
 
+    @typechecked
     def solve_output(self, propulsion_power: float) -> float:
-        return propulsion_power * self.speed_over_power_constant
+        speed = propulsion_power * self.speed_over_power_constant
+
+        return speed
 
 
 @dataclass
@@ -157,11 +173,14 @@ class Boat:
     propulsion: Propulsion
     hull: Hull
 
+    @typechecked
     def run(
         self, dt: float, irradiation: float, motor_throttle: float
     ) -> BoatOutputData:
-        # TODO: Create exeption types and throw then in case of battery under or over voltage. This battery exception might be implemented as a BMS model, which could be disabled.
-        # TODO: Create some way to programatically inject an exception, to simulate catastrophic events like crashes, which could take the boat off the race.
+        # TODO: Create exeption types and throw then in case of battery under or over voltage.
+        # This battery exception might be implemented as a BMS model, which could be disabled.
+        # TODO: Create some way to programatically inject an exception, to simulate catastrophic
+        # events like crashes, which could take the boat off the race.
 
         # Step #1 - solve for battery:
         target_circuits_input_power = self.circuits.power
