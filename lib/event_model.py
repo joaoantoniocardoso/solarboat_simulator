@@ -34,6 +34,22 @@ class EventResultData:
 EventResultDataSet = DataSet[EventResultData]
 
 
+class EventError(Exception):
+    """Exception raised for erros during event operation.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message: str) -> None:
+        self.message = (message,)
+        super().__init__(self.message)
+
+
+class EventGoalFailed(EventError):
+    pass
+
+
 @dataclass
 class EventOutputData:
     name: str
@@ -125,15 +141,13 @@ class Event:
                 else:
                     status = RaceStatus.STARTED
 
-            except TypeError as e:
-                raise e
-
-            except Exception as e:
+            except (BoatError, EventGoalFailed) as e:
                 old_status = event_result[k_old].status
                 status = RaceStatus.DNF
                 if old_status != RaceStatus.DNF:
                     print(
-                        f"Boat out of the race, status: {old_status} => {status}. Reason: {e}"
+                        f"Boat out of the race, status: {RaceStatus.to_str(old_status)}"
+                        + f" => {RaceStatus.to_str(status)}. Reason: {e}"
                     )
 
             distance = output_data[k].hull_speed * dt
