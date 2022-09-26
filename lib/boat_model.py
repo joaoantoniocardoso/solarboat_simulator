@@ -6,6 +6,26 @@ from typeguard import typechecked
 from lib.utils import naive_power, naive_energy
 from lib.boat_data import BoatOutputData
 
+class BoatError(Exception):
+    """Exception raised for erros during boat operation.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message: str) -> None:
+        self.message = (message,)
+        super().__init__(self.message)
+
+
+# TODO: This battery exceptions might be implemented as a BMS model, which could be disabled.
+class BatteryOverVoltageError(BoatError):
+    pass
+
+
+class BatteryUnderVoltageError(BoatError):
+    pass
+
 
 @dataclass
 class Panel:
@@ -177,8 +197,6 @@ class Boat:
     def run(
         self, dt: float, irradiation: float, motor_throttle: float
     ) -> BoatOutputData:
-        # TODO: Create exeption types and throw then in case of battery under or over voltage.
-        # This battery exception might be implemented as a BMS model, which could be disabled.
         # TODO: Create some way to programatically inject an exception, to simulate catastrophic
         # events like crashes, which could take the boat off the race.
 
