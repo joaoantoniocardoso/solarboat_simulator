@@ -73,11 +73,16 @@ class FixedLapsGoal(EventGoal):
 
     @typechecked
     def accomplished(self, event_result: EventResultData) -> bool:
-        if event_result.elapsed_time > self.total_time:
-            raise Exception
+        self._completed_laps = int(event_result.distance // self.lap_distance)
 
-        self._completed_laps = event_result.distance // self.lap_distance  # type: ignore
-        return self._completed_laps >= self.total_laps
+        completed = self._completed_laps >= self.total_laps
+
+        if not completed and event_result.elapsed_time > self.total_time:
+            raise EventGoalFailed(
+                f"Time over: {Timedelta(event_result.elapsed_time)} > {self.total_time}\n {self}"
+            )
+
+        return completed
 
 
 @dataclass
