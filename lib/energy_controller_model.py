@@ -5,7 +5,7 @@ from typeguard import typechecked
 class EnergyController(ABC):
     from lib.boat_model import Boat
     from lib.boat_data import BoatInputData, BoatOutputData
-    from lib.event_model import EventResultData
+    from lib.event_model import EventInputData, EventResultData
 
     @typechecked
     @abstractmethod
@@ -16,5 +16,6 @@ class EnergyController(ABC):
         output_data: BoatOutputData,
         event_result: EventResultData,
         boat: Boat,
+        event: EventInputData,
     ) -> float:
         ...
