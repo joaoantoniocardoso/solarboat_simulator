@@ -30,8 +30,12 @@ class Competition:
         boat: Boat,
         energy_controller: EnergyController,
     ) -> CompetitionResult:
-        competition_start: datetime64 = Timestamp(self.events[0].start).to_datetime64()
-        competition_end: datetime64 = Timestamp(self.events[-1].end).to_datetime64()
+        competition_start: datetime64 = Timestamp(
+            self.events[0].data.start
+        ).to_datetime64()
+        competition_end: datetime64 = Timestamp(
+            self.events[-1].data.end
+        ).to_datetime64()
 
         self._check_input(input_data, competition_start, competition_end)
 
@@ -45,14 +49,14 @@ class Competition:
 
         for event in self.events:
             # Select the event simulation input data
-            event_start: datetime64 = Timestamp(event.start).to_datetime64()
-            event_end: datetime64 = Timestamp(event.end).to_datetime64()
+            event_start: datetime64 = Timestamp(event.data.start).to_datetime64()
+            event_end: datetime64 = Timestamp(event.data.end).to_datetime64()
             event_input_data = input_data[
                 (input_data.time >= event_start) & (input_data.time <= event_end)
             ].pipe(BoatInputDataSet)
             results.append(
                 event.run(
-                    input_data=event_input_data,
+                    boat_input_data=event_input_data,
                     boat=boat,
                     energy_controller=energy_controller,
                 )

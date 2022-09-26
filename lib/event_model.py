@@ -15,6 +15,7 @@ from lib.boat_data import (
     BoatOutputData,
     BoatOutputDataSet,
 )
+from lib.boat_model import BoatError
 
 
 class RaceStatus:
@@ -22,6 +23,18 @@ class RaceStatus:
     STARTED = 1
     FINISHED = 2
     DNF = 3
+
+    @staticmethod
+    def to_str(status: int) -> str | None:
+        if status == RaceStatus.DNS:
+            return "DNS"
+        elif status == RaceStatus.STARTED:
+            return "STARTED"
+        elif status == RaceStatus.FINISHED:
+            return "FINISHED"
+        elif status == RaceStatus.DNF:
+            return "DNF"
+        return None
 
 
 @dataclass
@@ -86,10 +99,7 @@ class FixedLapsGoal(EventGoal):
 
 
 @dataclass
-class Event:
-    from lib.boat_model import Boat
-    from lib.energy_controller_model import EnergyController
-
+class EventInputData:
     name: str
     description: str
     goal: EventGoal
@@ -97,15 +107,23 @@ class Event:
     start: Timestamp
     end: Timestamp
 
+
+@dataclass
+class Event:
+    from lib.boat_model import Boat
+    from lib.energy_controller_model import EnergyController
+
+    data: EventInputData
+
     @typechecked
     def run(
         self,
-        input_data: BoatInputDataSet,
+        boat_input_data: BoatInputDataSet,
         boat: Boat,
         energy_controller: EnergyController,
     ) -> EventOutputData:
         # Transform time vector to seconds
-        t = input_data.time.to_numpy().astype(int64)
+        t = boat_input_data.time.to_numpy().astype(int64)
         t = (t - t[0]) * 1e-9
 
         output_data = np.full(
@@ -133,15 +151,18 @@ class Event:
             try:
                 control = energy_controller.run(
                     dt=float(dt),
-                    input_data=BoatInputData(**input_data.iloc[k].to_dict()),
+                    input_data=BoatInputData(**boat_input_data.iloc[k].to_dict()),
                     output_data=output_data[k_old],
                     event_result=event_result[k_old],
                     boat=boat,
+                    event=self.data,
                 )
 
-                output_data[k] = boat.run(float(dt), input_data.iloc[k].poa, control)
+                output_data[k] = boat.run(
+                    float(dt), boat_input_data.iloc[k].poa, control
+                )
 
-                if self.goal.accomplished(event_result=event_result[k]):
+                if self.data.goal.accomplished(event_result=event_result[k_old]):
                     status = RaceStatus.FINISHED
                 else:
                     status = RaceStatus.STARTED
@@ -157,12 +178,12 @@ class Event:
 
             distance = output_data[k].hull_speed * dt
             elapsed_time = Timedelta(
-                input_data.iloc[k].time - input_data.iloc[0].time
+                boat_input_data.iloc[k].time - boat_input_data.iloc[0].time
             ).to_timedelta64()
 
             event_result[k] = EventResultData(
-                distance=distance,
-                elapsed_time=elapsed_time,
+                distance=event_result[k_old].distance + distance,
+                elapsed_time=event_result[k_old].elapsed_time + elapsed_time,
                 status=status,
             )
 
@@ -175,8 +196,8 @@ class Event:
         ).pipe(EventResultDataSet)
 
         return EventOutputData(
-            name=self.name,
-            input_data=input_data,
+            name=self.data.name,
+            input_data=boat_input_data,
             output_data=output_data,
             event_result=event_result,
         )
