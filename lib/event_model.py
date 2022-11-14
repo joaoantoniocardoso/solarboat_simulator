@@ -90,9 +90,10 @@ class FixedLapsGoal(EventGoal):
 
         completed = self._completed_laps >= self.total_laps
 
-        if not completed and event_result.elapsed_time > self.total_time:
+        if (not completed) and (event_result.elapsed_time > self.total_time):
             raise EventGoalFailed(
                 f"Time over: {Timedelta(event_result.elapsed_time)} > {self.total_time}\n {self}"
+                + f"\n {event_result}"
             )
 
         return completed
