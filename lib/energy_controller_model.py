@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 from typeguard import typechecked
 
+from lib.boat_model import Boat
+from lib.boat_data import BoatInputData, BoatOutputData
+from lib.event_model import EventInputData, EventResultData, RaceStatus
+
 
 class EnergyController(ABC):
-    from lib.boat_model import Boat
-    from lib.boat_data import BoatInputData, BoatOutputData
-    from lib.event_model import EventInputData, EventResultData
-
     @typechecked
     @abstractmethod
     def run(
