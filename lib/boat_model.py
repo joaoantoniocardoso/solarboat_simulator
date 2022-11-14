@@ -130,7 +130,7 @@ class ESC:
         return input_power
 
     @typechecked
-    def solve_output(self, input_power) -> float:
+    def solve_output(self, input_power: float) -> float:
         output_power = input_power * self.efficiency
         return output_power
 
@@ -148,7 +148,7 @@ class Motor:
         return input_power
 
     @typechecked
-    def solve_output(self, input_power) -> float:
+    def solve_output(self, input_power: float) -> float:
         output_power = input_power * self.efficiency
         return output_power
 
@@ -166,12 +166,11 @@ class Propulsion:
         return input_power
 
     @typechecked
-    def solve_output(self, input_power) -> float:
+    def solve_output(self, input_power: float) -> float:
         output_power = input_power * self.efficiency
         return output_power
 
 
-@typechecked
 @dataclass
 class Hull:
     speed_over_power_constant: float
