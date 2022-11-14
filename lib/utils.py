@@ -7,12 +7,14 @@ import seaborn as sns
 
 
 def naive_power(energy: float, time: float, timebase: float = 1.0) -> float:
-    """energy [Wh], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in seconds"""
+    """energy [Wh], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in
+    seconds"""
     return np.divide(energy, time / timebase)
 
 
 def naive_energy(power: float, time: float, timebase: float = 1.0) -> float:
-    """power [W], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in seconds"""
+    """power [W], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in
+    seconds"""
     return power * (time / timebase)
 
 
@@ -64,15 +66,14 @@ def open_forecast_file(forecast_file: str) -> pd.DataFrame:
 
 
 def open_forecast_files(forecast_files: list[str], event: dict) -> pd.DataFrame:
-    """Combine all forecasts, always keeping the range interval from the
-    first file from the forecast_files, while using the latest updated
-    forecast data, provided by the consecutive files from the forecast_files."""
+    # """Combine all forecasts, always keeping the range interval from the
+    # first file from the forecast_files, while using the latest updated
+    # forecast data, provided by the consecutive files from the forecast_files."""
     forecast_files = sorted(set(forecast_files))
     df = open_forecast_file(forecast_files[0])
     for i in range(1, len(forecast_files)):
-        df_tmp = open_forecast_file(forecast_files[i])
-        df_tmp = df_tmp.loc[df_tmp.index <= df.index[-1]]  # type: ignore
-        df.loc[df.index >= df_tmp.index[0]] = df_tmp  # type: ignore
+        df_new = open_forecast_file(forecast_files[i])
+        df.loc[df.index >= df_new.index[0]] = df_new  # type: ignore
     return df[event["time"]["start"] : event["time"]["end"]][:-1]
 
 
