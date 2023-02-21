@@ -3,9 +3,11 @@
   "python.analysis.diagnosticMode": "workspace",
   "python.analysis.inlayHints.functionReturnTypes": true,
   "python.analysis.inlayHints.variableTypes": true,
-  "python.analysis.typeCheckingMode": "basic",
   "mypy.runUsingActiveInterpreter": true,
   "python.linting.enabled": true,
   "python.formatting.provider": "black",
-  "python.linting.pylamaEnabled": true,
+  "python.linting.pylamaEnabled": false,
+  "python.testing.pytestArgs": ["lib"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }
