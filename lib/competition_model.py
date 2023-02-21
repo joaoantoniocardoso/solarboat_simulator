@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typeguard import typechecked
 
-from numpy import datetime64
 from pandas import Timestamp
 
 from lib.boat_data import BoatInputDataSet
@@ -30,12 +29,8 @@ class Competition:
         boat: Boat,
         energy_controller: EnergyController,
     ) -> CompetitionResult:
-        competition_start: datetime64 = Timestamp(
-            self.events[0].data.start
-        ).to_datetime64()
-        competition_end: datetime64 = Timestamp(
-            self.events[-1].data.end
-        ).to_datetime64()
+        competition_start: Timestamp = self.events[0].data.start
+        competition_end: Timestamp = self.events[-1].data.end
 
         self._check_input(input_data, competition_start, competition_end)
 
@@ -49,9 +44,9 @@ class Competition:
 
         for event in self.events:
             # Select the event simulation input data
-            event_start: datetime64 = Timestamp(event.data.start).to_datetime64()
-            event_end: datetime64 = Timestamp(event.data.end).to_datetime64()
-            event_input_data = input_data[
+            event_start: Timestamp = event.data.start
+            event_end: Timestamp = event.data.end
+            event_input_data: BoatInputDataSet = input_data[
                 (input_data.time >= event_start) & (input_data.time <= event_end)
             ].pipe(BoatInputDataSet)
             results.append(
@@ -68,8 +63,8 @@ class Competition:
     def _check_input(
         self,
         input_data: BoatInputDataSet,
-        competition_start: datetime64,
-        competition_end: datetime64,
+        competition_start: Timestamp,
+        competition_end: Timestamp,
     ):
         if input_data.iloc[0].time > competition_start:
             print(input_data.iloc[0].time, competition_start)
