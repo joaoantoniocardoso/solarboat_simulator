@@ -66,9 +66,9 @@ def open_forecast_file(forecast_file: str) -> pd.DataFrame:
 
 
 def open_forecast_files(forecast_files: list[str], event: dict) -> pd.DataFrame:
-    # """Combine all forecasts, always keeping the range interval from the
-    # first file from the forecast_files, while using the latest updated
-    # forecast data, provided by the consecutive files from the forecast_files."""
+    """Combine all forecasts, always keeping the range interval from the
+    first file from the forecast_files, while using the latest updated
+    forecast data, provided by the consecutive files from the forecast_files."""
     forecast_files = sorted(set(forecast_files))
     df = open_forecast_file(forecast_files[0])
     for i in range(1, len(forecast_files)):

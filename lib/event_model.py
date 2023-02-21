@@ -18,6 +18,7 @@ from lib.boat_data import (
 from lib.boat_model import BoatError
 
 
+# TODO: Maybe separate the race status (started or finished) from the boat status (dns, dnf, racing)
 class RaceStatus:
     DNS = 0
     STARTED = 1
