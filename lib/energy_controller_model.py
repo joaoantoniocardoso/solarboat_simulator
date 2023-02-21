@@ -21,6 +21,7 @@ class EnergyController(ABC):
     def run(
         self,
         dt: float,
+        k: int,
         input_data: BoatInputData,
         output_data: BoatOutputData,
         event_result: EventResultData,
