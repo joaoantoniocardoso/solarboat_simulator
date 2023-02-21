@@ -143,6 +143,7 @@ class Event:
 
         energy_controller.before_event_start(boat=boat, event=self.data)
 
+        dt: float = t[1] - t[0]
         for k in range(t.size):
             k_old = max(0, k - 1)
 
