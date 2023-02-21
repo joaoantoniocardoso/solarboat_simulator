@@ -4,8 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typeguard import typechecked
 
-from numpy import int64
-from pandas import DataFrame, Timestamp, Timedelta
+from pandas import Timestamp, Timedelta
 from strictly_typed_pandas.dataset import DataSet
 
 
@@ -125,7 +124,7 @@ class Event:
         energy_controller: EnergyController,
     ) -> EventOutputData:
         # Transform time vector to seconds
-        t = boat_input_data.time.to_numpy().astype(int64)
+        t = boat_input_data.time.to_numpy().astype(float)
         t = (t - t[0]) * 1e-9
 
         output_data = np.full(
@@ -153,7 +152,7 @@ class Event:
             status = RaceStatus.DNS
             try:
                 control = energy_controller.run(
-                    dt=float(dt),
+                    dt=dt,
                     input_data=BoatInputData(**boat_input_data.iloc[k].to_dict()),
                     output_data=output_data[k_old],
                     event_result=event_result[k_old],
@@ -161,9 +160,7 @@ class Event:
                     event=self.data,
                 )
 
-                output_data[k] = boat.run(
-                    float(dt), boat_input_data.iloc[k].poa, control
-                )
+                output_data[k] = boat.run(dt, boat_input_data.iloc[k].poa, control)
 
                 if self.data.goal.accomplished(event_result=event_result[k_old]):
                     status = RaceStatus.FINISHED
