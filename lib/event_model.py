@@ -188,7 +188,7 @@ class Event:
 
             event_result[k] = EventResultData(
                 distance=event_result[k_old].distance + distance,
-                elapsed_time=event_result[k_old].elapsed_time + elapsed_time,
+                elapsed_time=elapsed_time,
                 status=status,
             )
 
