@@ -10,27 +10,6 @@ from lib.propulsion_model import Propulsion
 from lib.hull_model import Hull
 
 
-class BoatError(Exception):
-    """Exception raised for erros during boat operation.
-
-    Attributes:
-        message -- explanation of the error
-    """
-
-    def __init__(self, message: str) -> None:
-        self.message = (message,)
-        super().__init__(self.message)
-
-
-# TODO: This battery exceptions might be implemented as a BMS model, which could be disabled.
-class BatteryOverVoltageError(BoatError):
-    pass
-
-
-class BatteryUnderVoltageError(BoatError):
-    pass
-
-
 @dataclass
 class Other:
     power: float
