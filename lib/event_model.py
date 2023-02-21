@@ -142,7 +142,8 @@ class Event:
             dtype=EventResultData,
         )
 
-        dt: int64 = t[1] - t[0]
+        energy_controller.before_event_start(boat=boat, event=self.data)
+
         for k in range(t.size):
             k_old = max(0, k - 1)
 

@@ -9,6 +9,15 @@ from lib.event_model import EventInputData, EventResultData, RaceStatus
 class EnergyController(ABC):
     @typechecked
     @abstractmethod
+    def before_event_start(
+        self,
+        boat: Boat,
+        event: EventInputData,
+    ) -> None:
+        ...
+
+    @typechecked
+    @abstractmethod
     def run(
         self,
         dt: float,
