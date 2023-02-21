@@ -154,6 +154,7 @@ class Event:
             try:
                 control = energy_controller.run(
                     dt=dt,
+                    k=k,
                     input_data=BoatInputData(**boat_input_data.iloc[k].to_dict()),
                     output_data=output_data[k_old],
                     event_result=event_result[k_old],
