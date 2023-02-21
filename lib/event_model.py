@@ -143,6 +143,7 @@ class Event:
 
         energy_controller.before_event_start(boat=boat, event=self.data)
 
+        status = RaceStatus.DNS
         dt: float = t[1] - t[0]
         for k in range(t.size):
             k_old = max(0, k - 1)
@@ -150,7 +151,6 @@ class Event:
             if k > 0:
                 dt = t[k] - t[k_old]
 
-            status = RaceStatus.DNS
             try:
                 control = energy_controller.run(
                     dt=dt,
