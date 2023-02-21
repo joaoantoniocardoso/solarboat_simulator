@@ -192,17 +192,12 @@ class Event:
                 status=status,
             )
 
-        output_data = DataFrame(list(output_data)).pipe(BoatOutputDataSet)
-
-        event_result = DataFrame(
-            list(
-                event_result,
-            )
-        ).pipe(EventResultDataSet)
+        output_data_dataset = BoatOutputDataSet(list(output_data))
+        event_result_dataset = EventResultDataSet(list(event_result))
 
         return EventOutputData(
             name=self.data.name,
             input_data=boat_input_data,
-            output_data=output_data,
-            event_result=event_result,
+            output_data=output_data_dataset,
+            event_result=event_result_dataset,
         )
