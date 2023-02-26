@@ -38,6 +38,26 @@ def integrate(df: pd.DataFrame, time_constant: int = 3600) -> pd.DataFrame:
     )  # type: ignore
 
 
+def mse(x0: np.float64, x1: np.float64) -> np.float64:
+    """Mean Squared Error (MSE)"""
+    return np.sum(x0 - x1) ** 2 / x0
+
+
+def rmse(x0: np.float64, x1: np.float64) -> np.float64:
+    """Root Mean Squared Error (RMSE)"""
+    return np.sqrt(np.sum(x0 - x1) ** 2 / np.abs(x0))
+
+
+def mae(x0: np.float64, x1: np.float64) -> np.float64:
+    """Mean Absolute Error (MAE)"""
+    return np.sum(np.abs(x0 - x1)) / x0
+
+
+def simple_error(x0: np.float64, x1: np.float64) -> np.float64:
+    """Simple error"""
+    return (x0 - x1) / x0
+
+
 def get_irradiance(site_location, tilt, surface_azimuth, weather_data):
     solar_position = site_location.get_solarposition(times=weather_data.index)
 
