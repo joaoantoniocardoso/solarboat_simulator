@@ -12,35 +12,35 @@ class Battery:
 
     Attributes:
     ----------
-    soc_0 (float)
+    soc_0 (np.float64)
         Initial State Of Charge, between 0.0 and 1.0.
-    minimum_soc (float)
+    minimum_soc (np.float64)
         Minimum State Of Charge, between 0.0 and 1.0.
-    efficiency (float)
+    efficiency (np.float64)
         Charge and Discharge Efficiency, between 0.0 and 1.0.
-    maximum_energy (float)
+    maximum_energy (np.float64)
         Maximum energy to be stored in the battery
-    maximum_power (float)
+    maximum_power (np.float64)
         Maximum power to be used during charge and discharge
 
     """
 
-    efficiency: float
-    energy: float
-    soc: float
-    minimum_soc: float
-    maximum_energy: float
-    minimum_energy: float
-    maximum_power: float
+    efficiency: np.float64
+    energy: np.float64
+    soc: np.float64
+    minimum_soc: np.float64
+    maximum_energy: np.float64
+    minimum_energy: np.float64
+    maximum_power: np.float64
 
     @typechecked
     def __init__(
         self,
-        soc_0: float,
-        minimum_soc: float,
-        efficiency: float,
-        maximum_energy: float,
-        maximum_power: float,
+        soc_0: np.float64,
+        minimum_soc: np.float64,
+        efficiency: np.float64,
+        maximum_energy: np.float64,
+        maximum_power: np.float64,
     ):
         self.efficiency = efficiency
         self.soc = soc_0
@@ -51,49 +51,49 @@ class Battery:
         self.maximum_power = maximum_power
 
     @typechecked
-    def _charge(self, dt: float, power: float) -> float:
-        energy = naive_energy(power=power, time=dt, timebase=3600)
+    def _charge(self, dt: np.float64, power: np.float64) -> np.float64:
+        energy = naive_energy(power=power, time=dt, timebase=np.float64(3600))
         self.energy += energy * self.efficiency
 
         if self.energy > self.maximum_energy:
             exceeded_energy = self.energy - self.maximum_energy
             self.energy -= exceeded_energy
-            exceeded_power = naive_power(exceeded_energy, dt, timebase=3600)
+            exceeded_power = naive_power(exceeded_energy, dt, timebase=np.float64(3600))
             return power - exceeded_power
 
         return power
 
     @typechecked
-    def _discharge(self, dt: float, power: float) -> float:
-        energy = naive_energy(power=power, time=dt, timebase=3600)
+    def _discharge(self, dt: np.float64, power: np.float64) -> np.float64:
+        energy = naive_energy(power=power, time=dt, timebase=np.float64(3600))
         self.energy -= energy * self.efficiency
 
         if self.energy < self.minimum_energy:
             exceeded_energy = self.minimum_energy - self.energy
             self.energy += exceeded_energy
-            exceeded_power = naive_power(exceeded_energy, dt, timebase=3600)
+            exceeded_power = naive_power(exceeded_energy, dt, timebase=np.float64(3600))
             return power - exceeded_power
 
         return power
 
     @typechecked
-    def solve(self, dt: float, target_power: float) -> float:
+    def solve(self, dt: np.float64, target_power: np.float64) -> np.float64:
         """Solves battery output power for a given target (input) power.
 
         Args:
-            dt (float): Duration of the event (in seconds)
-            target_power (float): Target (input) power of the event
+            dt (np.float64): Duration of the event (in seconds)
+            target_power (np.float64): Target (input) power of the event
 
         Returns:
-            float: battery output power (in watts)
+            np.float64: battery output power (in watts)
         """
-        power = 0.0
+        power = np.float64(0.0)
         if target_power > 0:
             if self.soc < 1:
-                power = self._charge(dt, abs(target_power))
+                power = self._charge(dt, np.abs(target_power))
         else:
             if self.soc > 0:
-                power = -self._discharge(dt, abs(target_power))
+                power = -self._discharge(dt, np.abs(target_power))
 
         if np.abs(power) > self.maximum_power:
             power = np.sign(power) * self.maximum_power

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typeguard import typechecked
 
+import numpy as np
 from numpy import datetime64
 
 from strictly_typed_pandas.dataset import DataSet
@@ -26,34 +27,34 @@ class EnergyController(ABC):
     @abstractmethod
     def run(
         self,
-        dt: float,
+        dt: np.float64,
         k: int,
         input_data: BoatInputData,
         output_data: BoatOutputData,
         event_result: EventResultData,
         boat: Boat,
         event: EventInputData,
-    ) -> float:
+    ) -> np.float64:
         ...
 
 
 @typechecked
 class ConstantPowerController(EnergyController):
-    def __init__(self, constant: float):
+    def __init__(self, constant: np.float64):
         self.constant = constant
 
     def run(
         self,
-        dt: float,
+        dt: np.float64,
         k: int,
         input_data: BoatInputData,
         output_data: BoatOutputData,
         event_result: EventResultData,
         boat: Boat,
         event: EventInputData,
-    ) -> float:
+    ) -> np.float64:
         if event_result.status != RaceStatus.STARTED:
-            return 0.0
+            return np.float64(0.0)
 
         return self.constant
 
@@ -61,9 +62,9 @@ class ConstantPowerController(EnergyController):
 @dataclass
 class PredictionData:
     time: datetime64
-    poa: float
-    poa10: float
-    poa90: float
+    poa: np.float64
+    poa10: np.float64
+    poa90: np.float64
 
 
 PredictionDataSet = DataSet[PredictionData]
@@ -71,17 +72,17 @@ PredictionDataSet = DataSet[PredictionData]
 
 class AverageController(EnergyController):
     @typechecked
-    def __init__(self, prediction_dataset: PredictionDataSet, overdrive: float):
-        self.overdrive: float = overdrive
+    def __init__(self, prediction_dataset: PredictionDataSet, overdrive: np.float64):
+        self.overdrive: np.float64 = overdrive
         self.prediction_dataset: PredictionDataSet = prediction_dataset
-        self.event_power: float = 0.0
+        self.event_power: np.float64 = np.float64(0.0)
         self.event_name: str = ""
-        self.event_poa_avg: float = 0.0
-        self.event_energy: float = 0.0
-        self.competition_poa_avg: float = 0.0
-        self.competition_energy: float = 0.0
-        self.duration: float = 0.0  # in hours
-        self.event_battery_avg_power: float = 0.0
+        self.event_poa_avg: np.float64 = np.float64(0.0)
+        self.event_energy: np.float64 = np.float64(0.0)
+        self.competition_poa_avg: np.float64 = np.float64(0.0)
+        self.competition_energy: np.float64 = np.float64(0.0)
+        self.duration: np.float64 = np.float64(0.0)  # in hours
+        self.event_battery_avg_power: np.float64 = np.float64(0.0)
 
     @typechecked
     def before_event_start(
@@ -89,30 +90,30 @@ class AverageController(EnergyController):
         boat: Boat,
         event: EventInputData,
     ) -> None:
-        self.event_power = 0.0
+        self.event_power = np.float64(0.0)
         self.event_name = event.name
-        self.event_poa_avg = 0.0
-        self.event_energy = 0.0
-        self.competition_poa_avg = 0.0
-        self.competition_energy = 0.0
-        self.duration = 0.0
-        self.event_battery_avg_power = 0.0
+        self.event_poa_avg = np.float64(0.0)
+        self.event_energy = np.float64(0.0)
+        self.competition_poa_avg = np.float64(0.0)
+        self.competition_energy = np.float64(0.0)
+        self.duration = np.float64(0.0)
+        self.event_battery_avg_power = np.float64(0.0)
 
     @typechecked
     def run(
         self,
-        dt: float,
+        dt: np.float64,
         k: int,
         input_data: BoatInputData,
         output_data: BoatOutputData,
         event_result: EventResultData,
         boat: Boat,
         event: EventInputData,
-    ) -> float:
+    ) -> np.float64:
         if k == 0:
             # Compute time and duration
-            self.duration = float(
-                (event.end - event.start).to_numpy().astype(float) * 1e-9 / 3600.0
+            self.duration = np.float64(
+                (event.end - event.start).to_numpy().astype(np.float64) * 1e-9 / 3600.0
             )
 
             # Competition data TODO: use competiton time limits here, because the data might be bigger than the competition
@@ -123,9 +124,9 @@ class AverageController(EnergyController):
             self.competition_energy = integrate(pred_competition_df)["poa"][-1]
 
             # Event data
-            pred_event_df = pred_competition_df.loc[
-                lambda x: (event.start >= x.index) & (x.index <= event.end)
-            ]
+            pred_event_df = pred_competition_df.query(
+                "time >= @event.start & time <= @event.end"
+            )
 
             self.event_poa_avg = pred_event_df.mean()["poa"]
             self.event_energy = integrate(pred_event_df)["poa"][-1]
@@ -134,11 +135,11 @@ class AverageController(EnergyController):
                 irradiation=self.event_poa_avg
             )
 
-            self.event_battery_avg_power = min(
-                float(
-                    (boat.battery.energy - boat.battery.minimum_energy) / self.duration
-                ),
-                boat.battery.maximum_power,
+            self.event_battery_avg_power = np.min(
+                [
+                    (boat.battery.energy - boat.battery.minimum_energy) / self.duration,
+                    boat.battery.maximum_power,
+                ]
             )
 
             self.event_power = event_solar_avg_power + self.event_battery_avg_power
@@ -154,9 +155,9 @@ class AverageController(EnergyController):
             print("-" * 80, end="\n\n")
 
         elif event_result.status != RaceStatus.STARTED:
-            return 0.0
+            return np.float64(0.0)
 
-        pred_poa: float = (
+        pred_poa: np.float64 = (
             self.prediction_dataset.to_dataframe().set_index("time")["poa"].iloc[k]
         )
         target_power = (

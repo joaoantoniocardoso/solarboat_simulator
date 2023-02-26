@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typeguard import typechecked
 
+import numpy as np
+
 
 @dataclass
 class Panel:
@@ -8,31 +10,31 @@ class Panel:
 
     Attributes:
     ----------
-    efficiency (float)
+    efficiency (np.float64)
         Panel Efficiency, between 0.0 and 1.0.
-    area (float)
+    area (np.float64)
         Panel surface area, in meters.
-    maximum_output_power (float)
+    maximum_output_power (np.float64)
         Panel maximum output power, in watts.
 
     """
 
-    efficiency: float
-    area: float
-    maximum_output_power: float
+    efficiency: np.float64
+    area: np.float64
+    maximum_output_power: np.float64
 
     @typechecked
-    def solve_output(self, irradiation: float) -> float:
+    def solve_output(self, irradiation: np.float64) -> np.float64:
         """Solves panel output power (in watts) for a given irradiation (in watt per square meter).
 
         Args:
-            irradiation (float): Solar irradiation (in watt per square meter)
+            irradiation (np.float64): Solar irradiation (in watt per square meter)
 
         Returns:
-            float: panel output power (in watts)
+            np.float64: panel output power (in watts)
         """
         if irradiation <= 0.0:
-            return 0.0
+            return np.float64(0.0)
 
         input_power = irradiation * self.area
 
@@ -47,7 +49,7 @@ class Panel2(Panel):
     """Example of how to create a wrap around the simple model with a more complex efficnecy"""
 
     @typechecked
-    def solve_output(self, irradiation: float) -> float:
+    def solve_output(self, irradiation: np.float64) -> np.float64:
         self.efficiency = irradiation * 0.2 + 0.8
 
         return Panel.solve_output(self, irradiation)
