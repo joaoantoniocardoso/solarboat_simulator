@@ -172,7 +172,7 @@ class Event:
                 if status == RaceStatus.STARTED and k == t.size - 1:
                     raise EventGoalFailed("Race has ended")
 
-            except (BoatError, EventGoalFailed) as e:
+            except EventGoalFailed as e:
                 old_status = event_result[k_old].status
                 status = RaceStatus.DNF
                 if old_status != RaceStatus.DNF:
