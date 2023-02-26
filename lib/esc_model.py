@@ -10,25 +10,25 @@ class ESC:
 
     Attributes:
     ----------
-    efficiency (float)
+    efficiency (np.float64)
         ESC Efficiency, between 0.0 and 1.0.
-    maximum_output_power (float)
+    maximum_output_power (np.float64)
         ESC maximum output power, in watts.
 
     """
 
-    efficiency: float
-    maximum_input_power: float
+    efficiency: np.float64
+    maximum_input_power: np.float64
 
     @typechecked
-    def solve_input(self, throttle: float) -> float:
+    def solve_input(self, throttle: np.float64) -> np.float64:
         """Solves ESC input power (in watts) for a given throttle (percentage)
 
         Args:
-            input_power (float): ESC throttle, between 0.0 and 1.0.
+            input_power (np.float64): ESC throttle, between 0.0 and 1.0.
 
         Returns:
-            float: ESC input power (in watts)
+            np.float64: ESC input power (in watts)
         """
         throttle = np.clip(throttle, 0, 1)
 
@@ -39,14 +39,14 @@ class ESC:
         return input_power
 
     @typechecked
-    def solve_output(self, input_power: float) -> float:
+    def solve_output(self, input_power: np.float64) -> np.float64:
         """Solves ESC output power (in watts) for a given input power (in watts)
 
         Args:
-            input_power (float): ESC input power (in watts)
+            input_power (np.float64): ESC input power (in watts)
 
         Returns:
-            float: ESC output power (in watts)
+            np.float64: ESC output power (in watts)
         """
         output_power = input_power * self.efficiency
         return output_power

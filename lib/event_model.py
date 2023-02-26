@@ -39,7 +39,7 @@ class RaceStatus:
 
 @dataclass
 class EventResultData:
-    distance: float
+    distance: np.float64
     elapsed_time: np.timedelta64
     status: int
 
@@ -80,7 +80,7 @@ class EventGoal(ABC):
 @dataclass
 class FixedLapsGoal(EventGoal):
     total_laps: int
-    lap_distance: float
+    lap_distance: np.float64
     total_time: Timedelta
     _completed_laps: int = 0
 
@@ -104,7 +104,7 @@ class EventInputData:
     name: str
     description: str
     goal: EventGoal
-    # route: list[tuple[float, float]]
+    # route: list[tuple[np.float64, np.float64]]
     start: Timestamp
     end: Timestamp
 
@@ -124,19 +124,33 @@ class Event:
         energy_controller: EnergyController,
     ) -> EventOutputData:
         # Transform time vector to seconds
-        t = boat_input_data.time.to_numpy().astype(float)
+        t = boat_input_data.time.to_numpy().astype(np.float64)
         t = (t - t[0]) * 1e-9
 
         output_data = np.full(
             shape=t.size,
-            fill_value=BoatOutputData(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+            fill_value=BoatOutputData(
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+                np.float64(0),
+            ),
             dtype=BoatOutputData,
         )
 
         event_result = np.full(
             shape=t.size,
             fill_value=EventResultData(
-                0, Timedelta(0).to_timedelta64(), RaceStatus.DNS
+                np.float64(0), Timedelta(0).to_timedelta64(), RaceStatus.DNS
             ),
             dtype=EventResultData,
         )
@@ -144,7 +158,7 @@ class Event:
         energy_controller.before_event_start(boat=boat, event=self.data)
 
         status = RaceStatus.DNS
-        dt: float = t[1] - t[0]
+        dt: np.float64 = t[1] - t[0]
         for k in range(t.size):
             k_old = max(0, k - 1)
 

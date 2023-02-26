@@ -6,13 +6,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def naive_power(energy: float, time: float, timebase: float = 1.0) -> float:
+def naive_power(
+    energy: np.float64, time: np.float64, timebase: np.float64 = np.float64(1.0)
+) -> np.float64:
     """energy [Wh], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in
     seconds"""
     return np.divide(energy, time / timebase)
 
 
-def naive_energy(power: float, time: float, timebase: float = 1.0) -> float:
+def naive_energy(
+    power: np.float64, time: np.float64, timebase: np.float64 = np.float64(1.0)
+) -> np.float64:
     """power [W], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in
     seconds"""
     return power * (time / timebase)
