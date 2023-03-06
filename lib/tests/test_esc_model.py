@@ -1,20 +1,25 @@
 import numpy as np
+from hypothesis import given, example, settings, strategies
 
 from lib.esc_model import ESC
 
 
-def test_esc_input():
-    maximum_input_power = np.float64(1.0)
+@given(
+    maximum_input_power=strategies.floats(min_value=0.0, max_value=1.0),
+    throttle=strategies.floats(min_value=0.0, max_value=1.0),
+)
+def test_esc_input(maximum_input_power: np.float64, throttle: np.float64):
     esc = ESC(efficiency=np.float64(1.0), maximum_input_power=maximum_input_power)
 
-    for throttle in np.linspace(0, 1, 100):
-        assert esc.solve_input(throttle) == throttle
+    power = maximum_input_power * throttle
 
-    assert esc.solve_input(maximum_input_power * 10) == maximum_input_power
+    assert np.isclose(esc.solve_input(throttle), np.min([maximum_input_power, power]))
 
 
-def test_esc_output():
+@given(
+    power=strategies.floats(min_value=0.0, max_value=1.0),
+)
+def test_esc_output(power: np.float64):
     esc = ESC(efficiency=np.float64(1.0), maximum_input_power=np.float64(1.0))
 
-    for power in np.linspace(0, 1, 100):
-        assert esc.solve_output(power) == power
+    assert np.isclose(esc.solve_output(power), power)
