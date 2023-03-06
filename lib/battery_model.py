@@ -2,6 +2,7 @@ import numpy as np
 
 from dataclasses import dataclass
 from typeguard import typechecked
+import warnings
 
 from lib.utils import naive_power, naive_energy
 
@@ -29,6 +30,7 @@ class Battery:
     energy: np.float64
     soc: np.float64
     minimum_soc: np.float64
+    maximum_soc: np.float64
     maximum_energy: np.float64
     minimum_energy: np.float64
     maximum_power: np.float64
@@ -45,36 +47,11 @@ class Battery:
         self.efficiency = efficiency
         self.soc = soc_0
         self.minimum_soc = minimum_soc
+        self.maximum_soc = np.float64(1.0)
         self.energy = soc_0 * maximum_energy
         self.maximum_energy = maximum_energy
         self.minimum_energy = maximum_energy * minimum_soc
         self.maximum_power = maximum_power
-
-    @typechecked
-    def _charge(self, dt: np.float64, power: np.float64) -> np.float64:
-        energy = naive_energy(power=power, time=dt, timebase=np.float64(3600))
-        self.energy += energy * self.efficiency
-
-        if self.energy > self.maximum_energy:
-            exceeded_energy = self.energy - self.maximum_energy
-            self.energy -= exceeded_energy
-            exceeded_power = naive_power(exceeded_energy, dt, timebase=np.float64(3600))
-            return power - exceeded_power
-
-        return power
-
-    @typechecked
-    def _discharge(self, dt: np.float64, power: np.float64) -> np.float64:
-        energy = naive_energy(power=power, time=dt, timebase=np.float64(3600))
-        self.energy -= energy * self.efficiency
-
-        if self.energy < self.minimum_energy:
-            exceeded_energy = self.minimum_energy - self.energy
-            self.energy += exceeded_energy
-            exceeded_power = naive_power(exceeded_energy, dt, timebase=np.float64(3600))
-            return power - exceeded_power
-
-        return power
 
     @typechecked
     def solve(self, dt: np.float64, target_power: np.float64) -> np.float64:
@@ -87,16 +64,52 @@ class Battery:
         Returns:
             np.float64: battery output power (in watts)
         """
-        power = np.float64(0.0)
-        if target_power > 0:
-            if self.soc < 1:
-                power = self._charge(dt, np.abs(target_power))
-        else:
-            if self.soc > 0:
-                power = -self._discharge(dt, np.abs(target_power))
 
-        if np.abs(power) > self.maximum_power:
+        if dt < 1e-9:
+            raise ValueError("Parameter 'dt' must be >= 1e-9.")
+
+        if target_power == 0:
+            return target_power
+
+        target_delta_energy = naive_energy(
+            power=target_power, time=dt, timebase=np.float64(3600)
+        )
+
+        lost_energy = naive_energy(
+            power=np.abs(target_power) * (1 - self.efficiency),
+            time=dt,
+            timebase=np.float64(3600),
+        )
+
+        exceeded_energy = np.float64(0)
+        if target_delta_energy > 0:
+            exceeded_energy = np.max(
+                [
+                    np.float64(0),
+                    target_delta_energy - (self.maximum_energy - self.energy),
+                ]
+            )
+        else:
+            exceeded_energy = np.min(
+                [
+                    np.float64(0),
+                    (self.energy - self.minimum_energy) + target_delta_energy,
+                ]
+            )
+
+        exceeded_power = naive_power(exceeded_energy, dt, timebase=np.float64(3600))
+
+        power: np.float64 = target_power - exceeded_power
+
+        if abs(power) > self.maximum_power:
+            warnings.warn(
+                "power greater than self.maximum_power, its value will be saturated to self.maximum_power"
+            )
             power = np.sign(power) * self.maximum_power
 
+        self.energy += (
+            naive_energy(power=power, time=dt, timebase=np.float64(3600))
+        ) - lost_energy
         self.soc = self.energy / self.maximum_energy
+
         return power
