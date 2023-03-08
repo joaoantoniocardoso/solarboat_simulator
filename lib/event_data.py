@@ -32,22 +32,23 @@ class EventGoal(ABC):
 class FixedLapsGoal(EventGoal):
     total_laps: int
     lap_distance: np.float64
-    total_time: Timedelta
-    _completed_laps: int = 0
+    event_duration: Timedelta
 
     @typechecked
     def accomplished(self, event_result: event_data.EventResultData) -> bool:
-        self._completed_laps = int(event_result.distance // self.lap_distance)
+        completed_laps = int(event_result.distance // self.lap_distance)
 
-        completed = self._completed_laps >= self.total_laps
+        goal_accomplished = completed_laps >= self.total_laps
 
-        if (not completed) and (event_result.elapsed_time > self.total_time):
+        if (not goal_accomplished) and (
+            event_result.elapsed_time > self.event_duration
+        ):
             raise event_error.EventGoalFailed(
-                f"Time over: {Timedelta(event_result.elapsed_time)} > {self.total_time}\n {self}"
+                f"Time over: {Timedelta(event_result.elapsed_time)} > {self.event_duration}\n {self}"
                 + f"\n {event_result}"
             )
 
-        return completed
+        return goal_accomplished
 
 
 @dataclass
