@@ -1,6 +1,6 @@
 import numpy as np
 
-from lib.panel_model import Panel
+import lib.panel_model as panel_model
 
 
 def test_solve_output():
@@ -8,7 +8,7 @@ def test_solve_output():
     area = np.float64(1.0)
     maximum_output_power = np.float64(100.0)
 
-    panel = Panel(efficiency, area, maximum_output_power)
+    panel = panel_model.Panel(efficiency, area, maximum_output_power)
 
     irradiation = np.float64(0.0)
     assert panel.solve_output(irradiation) == irradiation

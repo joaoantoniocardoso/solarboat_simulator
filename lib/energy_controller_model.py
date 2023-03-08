@@ -8,9 +8,9 @@ from numpy import datetime64
 from strictly_typed_pandas.dataset import DataSet
 
 from lib.utils import integrate
-from lib.boat_model import Boat
-from lib.boat_data import BoatInputData, BoatOutputData
-from lib.event_model import EventInputData, EventResultData, RaceStatus
+import lib.boat_model as boat_model
+import lib.boat_data as boat_data
+import lib.event_data as event_data
 
 
 class EnergyController(ABC):
@@ -18,22 +18,22 @@ class EnergyController(ABC):
     @abstractmethod
     def before_event_start(
         self,
-        boat: Boat,
-        event: EventInputData,
+        boat: boat_model.Boat,
+        event: event_data.EventInputData,
     ) -> None:
         ...
 
     @typechecked
     @abstractmethod
-    def run(
+    def solve(
         self,
         dt: np.float64,
         k: int,
-        input_data: BoatInputData,
-        output_data: BoatOutputData,
-        event_result: EventResultData,
-        boat: Boat,
-        event: EventInputData,
+        input_data: boat_data.BoatInputData,
+        output_data: boat_data.BoatOutputData,
+        event_result: event_data.EventResultData,
+        boat: boat_model.Boat,
+        event: event_data.EventInputData,
     ) -> np.float64:
         ...
 
@@ -43,17 +43,17 @@ class ConstantPowerController(EnergyController):
     def __init__(self, constant: np.float64):
         self.constant = constant
 
-    def run(
+    def solve(
         self,
         dt: np.float64,
         k: int,
-        input_data: BoatInputData,
-        output_data: BoatOutputData,
-        event_result: EventResultData,
-        boat: Boat,
-        event: EventInputData,
+        input_data: boat_data.BoatInputData,
+        output_data: boat_data.BoatOutputData,
+        event_result: event_data.EventResultData,
+        boat: boat_model.Boat,
+        event: event_data.EventInputData,
     ) -> np.float64:
-        if event_result.status != RaceStatus.STARTED:
+        if event_result.status != event_data.RaceStatus.STARTED:
             return np.float64(0.0)
 
         return self.constant
@@ -87,8 +87,8 @@ class AverageController(EnergyController):
     @typechecked
     def before_event_start(
         self,
-        boat: Boat,
-        event: EventInputData,
+        boat: boat_model.Boat,
+        event: event_data.EventInputData,
     ) -> None:
         self.event_power = np.float64(0.0)
         self.event_name = event.name
@@ -100,15 +100,15 @@ class AverageController(EnergyController):
         self.event_battery_avg_power = np.float64(0.0)
 
     @typechecked
-    def run(
+    def solve(
         self,
         dt: np.float64,
         k: int,
-        input_data: BoatInputData,
-        output_data: BoatOutputData,
-        event_result: EventResultData,
-        boat: Boat,
-        event: EventInputData,
+        input_data: boat_data.BoatInputData,
+        output_data: boat_data.BoatOutputData,
+        event_result: event_data.EventResultData,
+        boat: boat_model.Boat,
+        event: event_data.EventInputData,
     ) -> np.float64:
         if k == 0:
             # Compute time and duration
@@ -154,7 +154,7 @@ class AverageController(EnergyController):
             print(f"{self.event_power=}")
             print("-" * 80, end="\n\n")
 
-        elif event_result.status != RaceStatus.STARTED:
+        elif event_result.status != event_data.RaceStatus.STARTED:
             return np.float64(0.0)
 
         pred_poa: np.float64 = (

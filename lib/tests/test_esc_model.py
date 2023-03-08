@@ -1,7 +1,7 @@
 import numpy as np
 from hypothesis import given, example, settings, strategies
 
-from lib.esc_model import ESC
+import lib.esc_model as esc_model
 
 
 @given(
@@ -9,7 +9,9 @@ from lib.esc_model import ESC
     throttle=strategies.floats(min_value=0.0, max_value=1.0),
 )
 def test_esc_input(maximum_input_power: np.float64, throttle: np.float64):
-    esc = ESC(efficiency=np.float64(1.0), maximum_input_power=maximum_input_power)
+    esc = esc_model.ESC(
+        efficiency=np.float64(1.0), maximum_input_power=maximum_input_power
+    )
 
     power = maximum_input_power * throttle
 
@@ -20,6 +22,6 @@ def test_esc_input(maximum_input_power: np.float64, throttle: np.float64):
     power=strategies.floats(min_value=0.0, max_value=1.0),
 )
 def test_esc_output(power: np.float64):
-    esc = ESC(efficiency=np.float64(1.0), maximum_input_power=np.float64(1.0))
+    esc = esc_model.ESC(efficiency=np.float64(1.0), maximum_input_power=np.float64(1.0))
 
     assert np.isclose(esc.solve_output(power), power)
