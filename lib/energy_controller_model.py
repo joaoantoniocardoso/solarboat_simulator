@@ -43,6 +43,15 @@ class ConstantPowerController(EnergyController):
     def __init__(self, constant: np.float64):
         self.constant = constant
 
+    @typechecked
+    def before_event_start(
+        self,
+        boat: boat_model.Boat,
+        event: event_data.EventInputData,
+    ) -> None:
+        pass
+
+    @typechecked
     def solve(
         self,
         dt: np.float64,
