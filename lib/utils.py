@@ -71,7 +71,7 @@ def get_irradiance(site_location, tilt, surface_azimuth, weather_data):
         solar_azimuth=solar_position["azimuth"],
     )
 
-    return pd.DataFrame({"POA": POA_irradiance["poa_global"]})
+    return pd.DataFrame({"POA": POA_irradiance["poa_global"]})  # type: ignore
 
 
 def open_forecast_file(forecast_file: str) -> pd.DataFrame:
