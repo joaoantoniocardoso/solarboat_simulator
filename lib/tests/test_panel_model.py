@@ -1,6 +1,6 @@
-from lib.panel_model import Panel
-
 import numpy as np
+
+from lib.panel_model import Panel
 
 
 def test_solve_output():
