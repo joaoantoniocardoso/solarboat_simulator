@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typeguard import typechecked
 
+
 from pandas import Timestamp
 
 import lib.boat_data as boat_data
@@ -15,8 +16,6 @@ class CompetitionResult:
 
 @dataclass
 class Competition:
-    import lib.boat_model as boat_model
-    import lib.energy_controller_model as energy_controller_model
     import lib.event_model as event_model
 
     name: str
@@ -26,8 +25,7 @@ class Competition:
     def solve(
         self,
         input_data: boat_data.BoatInputDataSet,
-        boat: boat_model.Boat,
-        energy_controller: energy_controller_model.EnergyController,
+        controlled_boat: event_model.ControlledBoat,
     ) -> CompetitionResult:
         competition_start: Timestamp = self.events[0].data.start
         competition_end: Timestamp = self.events[-1].data.end
@@ -52,8 +50,7 @@ class Competition:
             results.append(
                 event.solve(
                     boat_input_data=event_input_data,
-                    boat=boat,
-                    energy_controller=energy_controller,
+                    controlled_boat=controlled_boat,
                 )
             )
 

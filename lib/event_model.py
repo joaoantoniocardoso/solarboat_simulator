@@ -12,18 +12,23 @@ import lib.event_error as event_error
 
 
 @dataclass
-class Event:
+class ControlledBoat:
     import lib.boat_model as boat_model
     import lib.energy_controller_model as energy_controller_model
 
+    boat: boat_model.Boat
+    energy_controller: energy_controller_model.EnergyController
+
+
+@dataclass
+class Event:
     data: event_data.EventInputData
 
     @typechecked
     def solve(
         self,
         boat_input_data: boat_data.BoatInputDataSet,
-        boat: boat_model.Boat,
-        energy_controller: energy_controller_model.EnergyController,
+        controlled_boat: ControlledBoat,
     ) -> event_data.EventOutputData:
         # Transform time vector to seconds
         t = boat_input_data.time.to_numpy().astype(np.float64)
@@ -57,7 +62,9 @@ class Event:
             dtype=event_data.EventResultData,
         )
 
-        energy_controller.before_event_start(boat=boat, event=self.data)
+        controlled_boat.energy_controller.before_event_start(
+            boat=controlled_boat.boat, event=self.data
+        )
 
         status = event_data.RaceStatus.DNS
         dt: np.float64 = t[1] - t[0]
@@ -68,7 +75,7 @@ class Event:
                 dt = t[k] - t[k_old]
 
             try:
-                control = energy_controller.solve(
+                control = controlled_boat.energy_controller.solve(
                     dt=dt,
                     k=k,
                     input_data=boat_data.BoatInputData(
@@ -76,11 +83,13 @@ class Event:
                     ),
                     output_data=output_data[k_old],
                     event_result=event_result[k_old],
-                    boat=boat,
+                    boat=controlled_boat.boat,
                     event=self.data,
                 )
 
-                output_data[k] = boat.solve(dt, boat_input_data.iloc[k].poa, control)
+                output_data[k] = controlled_boat.boat.solve(
+                    dt, boat_input_data.iloc[k].poa, control
+                )
 
                 if self.data.goal.accomplished(event_result=event_result[k_old]):
                     status = event_data.RaceStatus.FINISHED
