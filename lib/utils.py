@@ -10,15 +10,15 @@ def naive_power(
     energy: np.float64, time: np.float64, timebase: np.float64 = np.float64(1.0)
 ) -> np.float64:
     """energy [Wh], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in
-    seconds"""
-    return np.divide(energy, time / timebase)
+    seconds. Time has a minimum value of 1e-9"""
+    return energy / (time / timebase)
 
 
 def naive_energy(
     power: np.float64, time: np.float64, timebase: np.float64 = np.float64(1.0)
 ) -> np.float64:
     """power [W], time [h|s], use timebase=1 if time in hours, or timebase=3600 if time in
-    seconds"""
+    seconds. Time has a minimum value of 1e-9"""
     return power * (time / timebase)
 
 
