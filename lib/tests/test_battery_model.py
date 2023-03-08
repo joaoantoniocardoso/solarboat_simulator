@@ -1,7 +1,7 @@
 import numpy as np
 from hypothesis import given, example, settings, strategies
 
-from lib.battery_model import Battery
+import lib.battery_model as battery_model
 
 
 @given(
@@ -17,7 +17,7 @@ def test_battery_cycle(
     minimum_soc: np.float64,
     maximum_power: np.float64,
 ):
-    battery = Battery(
+    battery = battery_model.Battery(
         soc_0=np.float64(0.5),
         minimum_soc=minimum_soc,
         efficiency=np.float64(1.0),
@@ -59,7 +59,7 @@ def test_battery_energy_limits(
     minimum_soc: np.float64,
     maximum_energy: np.float64,
 ):
-    battery = Battery(
+    battery = battery_model.Battery(
         soc_0=np.float64(1.0),
         minimum_soc=minimum_soc,
         efficiency=np.float64(1.0),
@@ -119,7 +119,7 @@ def test_battery_power_limit(
     maximum_power: np.float64,
     power: np.float64,
 ):
-    battery = Battery(
+    battery = battery_model.Battery(
         soc_0=np.float64(0.5),
         minimum_soc=minimum_soc,
         efficiency=np.float64(1.0),
@@ -134,7 +134,7 @@ def test_battery_power_limit(
 
 
 def test_battery_charge():
-    battery = Battery(
+    battery = battery_model.Battery(
         soc_0=np.float64(0.0),
         minimum_soc=np.float64(0.0),
         efficiency=np.float64(1.0),
@@ -151,7 +151,7 @@ def test_battery_charge():
 
 
 def test_battery_discharge():
-    battery = Battery(
+    battery = battery_model.Battery(
         soc_0=np.float64(1.0),
         minimum_soc=np.float64(0.0),
         efficiency=np.float64(1.0),
@@ -175,7 +175,7 @@ def test_battery_discharge():
     efficiency=strategies.floats(min_value=0.0, max_value=1.0),
 )
 def test_battery_efficiency(dt: np.float64, efficiency: np.float64):
-    battery = Battery(
+    battery = battery_model.Battery(
         soc_0=np.float64(1.0),
         minimum_soc=np.float64(0.0),
         efficiency=efficiency,

@@ -3,31 +3,31 @@ from typeguard import typechecked
 
 from pandas import Timestamp
 
-from lib.boat_data import BoatInputDataSet
-from lib.event_model import EventOutputData
+import lib.boat_data as boat_data
+import lib.event_data as event_data
 
 
 @dataclass
 class CompetitionResult:
     name: str
-    results: list[EventOutputData]
+    results: list[event_data.EventOutputData]
 
 
 @dataclass
 class Competition:
-    from lib.boat_model import Boat
-    from lib.energy_controller_model import EnergyController
-    from lib.event_model import Event
+    import lib.boat_model as boat_model
+    import lib.energy_controller_model as energy_controller_model
+    import lib.event_model as event_model
 
     name: str
-    events: list[Event]
+    events: list[event_model.Event]
 
     @typechecked
-    def run(
+    def solve(
         self,
-        input_data: BoatInputDataSet,
-        boat: Boat,
-        energy_controller: EnergyController,
+        input_data: boat_data.BoatInputDataSet,
+        boat: boat_model.Boat,
+        energy_controller: energy_controller_model.EnergyController,
     ) -> CompetitionResult:
         competition_start: Timestamp = self.events[0].data.start
         competition_end: Timestamp = self.events[-1].data.end
@@ -38,19 +38,19 @@ class Competition:
         input_data = input_data[
             (input_data.time >= competition_start)
             & (input_data.time <= competition_end)
-        ].pipe(BoatInputDataSet)
+        ].pipe(boat_data.BoatInputDataSet)
 
-        results: list[EventOutputData] = []
+        results: list[event_data.EventOutputData] = []
 
         for event in self.events:
             # Select the event simulation input data
             event_start: Timestamp = event.data.start
             event_end: Timestamp = event.data.end
-            event_input_data: BoatInputDataSet = input_data[
+            event_input_data: boat_data.BoatInputDataSet = input_data[
                 (input_data.time >= event_start) & (input_data.time <= event_end)
-            ].pipe(BoatInputDataSet)
+            ].pipe(boat_data.BoatInputDataSet)
             results.append(
-                event.run(
+                event.solve(
                     boat_input_data=event_input_data,
                     boat=boat,
                     energy_controller=energy_controller,
@@ -62,7 +62,7 @@ class Competition:
     @typechecked
     def _check_input(
         self,
-        input_data: BoatInputDataSet,
+        input_data: boat_data.BoatInputDataSet,
         competition_start: Timestamp,
         competition_end: Timestamp,
     ):

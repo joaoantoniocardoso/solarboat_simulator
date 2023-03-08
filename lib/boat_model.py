@@ -3,14 +3,8 @@ import numpy as np
 from dataclasses import dataclass
 from typeguard import typechecked
 
-from lib.boat_data import BoatOutputData
-from lib.panel_model import Panel
-from lib.battery_model import Battery
-from lib.esc_model import ESC
-from lib.motor_model import Motor
-from lib.propulsion_model import Propulsion
-from lib.hull_model import Hull
-from lib.boat_error import BoatError
+import lib.boat_data as boat_data
+import lib.boat_error as boat_error
 
 
 @dataclass
@@ -20,18 +14,28 @@ class Other:
 
 @dataclass
 class Boat:
-    panel: Panel
-    battery: Battery
+    import lib.panel_model as panel_model
+    import lib.battery_model as battery_model
+    import lib.esc_model as esc_model
+    import lib.motor_model as motor_model
+    import lib.propulsion_model as propulsion_model
+    import lib.hull_model as hull_model
+    import lib.boat_error as boat_error
+
+    name: str
+    panel: panel_model.Panel
+    battery: battery_model.Battery
     circuits: Other
-    esc: ESC
-    motor: Motor
-    propulsion: Propulsion
-    hull: Hull
+    esc: esc_model.ESC
+    motor: motor_model.Motor
+    propulsion: propulsion_model.Propulsion
+    hull: hull_model.Hull
+    status: boat_error.BoatError = boat_error.BoatError.NORMAL
 
     @typechecked
-    def run(
+    def solve(
         self, dt: np.float64, irradiation: np.float64, motor_throttle: np.float64
-    ) -> BoatOutputData:
+    ) -> boat_data.BoatOutputData:
         # TODO: Create some way to programatically inject an exception, to simulate catastrophic
         # events like crashes, which could take the boat off the race.
 
@@ -53,7 +57,7 @@ class Boat:
             battery_charge_target_power < battery_charge_power
             or self.circuits.power > -battery_charge_power
         ):
-            self.status = BoatError.OUT_OF_ENERGY
+            self.status = boat_error.BoatError.OUT_OF_ENERGY
 
         pv_output_power: np.float64 = np.min(
             [
@@ -77,7 +81,7 @@ class Boat:
         hull_speed = self.hull.solve_output(propulsive_output_power)
 
         # if self.status is not BoatError.NORMAL:
-        #     return BoatOutputData(
+        #     return boat_data.BoatOutputData(
         #         pv_output_power=np.float64(0.0),
         #         battery_stored_energy=self.battery.energy,
         #         battery_soc=self.battery.soc,
@@ -93,7 +97,7 @@ class Boat:
         #         motor_target_throttle=np.float64(0.0),
         #     )
 
-        return BoatOutputData(
+        return boat_data.BoatOutputData(
             pv_output_power=pv_output_power,
             battery_stored_energy=self.battery.energy,
             battery_soc=self.battery.soc,
