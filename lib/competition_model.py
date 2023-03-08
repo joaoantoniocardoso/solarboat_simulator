@@ -11,7 +11,7 @@ import lib.event_data as event_data
 @dataclass
 class CompetitionResult:
     name: str
-    results: list[event_data.EventOutputData]
+    results: list[list[event_data.EventOutputData]]
 
 
 @dataclass
@@ -25,7 +25,7 @@ class Competition:
     def solve(
         self,
         input_data: boat_data.BoatInputDataSet,
-        controlled_boat: event_model.ControlledBoat,
+        controlled_boats: list[event_model.ControlledBoat],
     ) -> CompetitionResult:
         competition_start: Timestamp = self.events[0].data.start
         competition_end: Timestamp = self.events[-1].data.end
@@ -38,7 +38,7 @@ class Competition:
             & (input_data.time <= competition_end)
         ].pipe(boat_data.BoatInputDataSet)
 
-        results: list[event_data.EventOutputData] = []
+        results: list[list[event_data.EventOutputData]] = []
 
         for event in self.events:
             # Select the event simulation input data
@@ -50,7 +50,7 @@ class Competition:
             results.append(
                 event.solve(
                     boat_input_data=event_input_data,
-                    controlled_boat=controlled_boat,
+                    controlled_boats=controlled_boats,
                 )
             )
 
