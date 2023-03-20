@@ -2,3 +2,5 @@
 __pycache__
 .ruff_cache
 .hypothesis
+.mypy_cache
+.pytest_cache
