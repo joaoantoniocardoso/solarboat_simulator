@@ -29,12 +29,12 @@ class Event:
         self,
         boat_input_data: boat_data.BoatInputDataSet,
         controlled_boats: list[ControlledBoat],
-    ) -> list[event_data.EventOutputData]:
+    ) -> dict[str, event_data.EventOutputData]:  # boat_name: data
         # Transform time vector to seconds
         t = boat_input_data.time.to_numpy().astype(np.float64)
         t = (t - t[0]) * 1e-9
 
-        event_output_data: list[event_data.EventOutputData] = []
+        event_output_data: dict[str, event_data.EventOutputData] = {}
 
         for controlled_boat in controlled_boats:
             boat_output_data = np.full(
@@ -127,13 +127,11 @@ class Event:
             output_data_dataset = boat_data.BoatOutputDataSet(list(boat_output_data))
             event_result_dataset = event_data.EventResultDataSet(list(event_result))
 
-            event_output_data.append(
-                event_data.EventOutputData(
-                    name=self.data.name,
-                    input_data=boat_input_data,
-                    output_data=output_data_dataset,
-                    event_result=event_result_dataset,
-                )
+            event_output_data[controlled_boat.boat.name] = event_data.EventOutputData(
+                name=self.data.name,
+                input_data=boat_input_data,
+                output_data=output_data_dataset,
+                event_result=event_result_dataset,
             )
 
         return event_output_data
