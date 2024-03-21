@@ -17,19 +17,21 @@ BoatInputDataSet = DataSet[BoatInputData]
 
 @dataclass
 class BoatOutputData:
+    pv_input_power: np.float64
     pv_output_power: np.float64
-    battery_stored_energy: np.float64
-    battery_soc: np.float64
+    mppt_input_power: np.float64
+    mppt_output_power: np.float64
     battery_output_power: np.float64
     esc_input_power: np.float64
     esc_output_power: np.float64
+    motor_input_power: np.float64
     motor_output_power: np.float64
-    propulsive_output_power: np.float64
+    transmission_input_power: np.float64
+    transmission_output_power: np.float64
     hull_speed: np.float64
-    pv_target_power: np.float64
-    esc_target_power: np.float64
-    battery_target_power: np.float64
-    motor_target_throttle: np.float64
+    motor_throttle: np.float64
+    battery_stored_energy: np.float64
+    battery_soc: np.float64
 
 
 BoatOutputDataSet = DataSet[BoatOutputData]

@@ -174,6 +174,6 @@ class AverageController(EnergyController):
         )
 
         p_motor = boat.motor.solve_input(target_power)
-        throttle = p_motor / boat.motor.maximum_input_power
+        throttle = p_motor / (boat.motor.maximum_current * boat.motor.operating_voltage)
 
         return throttle * self.overdrive
