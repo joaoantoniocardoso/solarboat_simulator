@@ -40,19 +40,8 @@ class Event:
             boat_output_data = np.full(
                 shape=t.size,
                 fill_value=boat_data.BoatOutputData(
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
-                    np.float64(0),
+                    *[np.float64(0)]
+                    * len(boat_data.BoatOutputData.__dataclass_fields__.keys())
                 ),
                 dtype=boat_data.BoatOutputData,
             )
