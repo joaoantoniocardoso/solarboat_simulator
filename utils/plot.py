@@ -78,10 +78,10 @@ def pallete():
         "orange": "#E69F00",
         "sky-blue": "#56B4E9",
         "reddish-purple": "#CC79A7",
-        "yellow": "#F0E442",
         "blue": "#0072B2",
         "vermilion": "#D55E00",
         "bluish-green": "#009E73",
+        "yellow": "#F0E442",
     }
 
 
@@ -184,7 +184,7 @@ def fig_save_and_show(
     Save the current figure and show it with a title.
 
     Args:
-        filename (str): The filename of the saved figure file, with file extension.
+        filename (str, optional): The filename of the saved figure file, with file extension.
         save_title (str): The title to save in a separate file.
         show_title (str): The title to display when showing the figure.
         ncol (int, optional): The number of columns in the legend. Defaults to 4.
@@ -235,11 +235,14 @@ def fig_save_and_show(
 
     # Save the image
     plt.tight_layout()
-    plt.savefig(filename)
+
+    if filename:
+        plt.savefig(filename)
 
     # Save the title
-    with open(f"{filename}.title", "w") as file:
-        file.write(save_title)
+    if filename:
+        with open(f"{filename}.title", "w") as file:
+            file.write(save_title)
 
     # Show the image with the title
     plt.suptitle(show_title)
