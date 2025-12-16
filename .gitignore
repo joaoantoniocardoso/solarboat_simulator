@@ -1,6 +1,18 @@
-.env
+.env*
+.venv*
 __pycache__
 .ruff_cache
 .hypothesis
 .mypy_cache
 .pytest_cache
+.aider*
+
+# Large data
+models/2020/boat_data_1s_pred.csv
+models/2020/boat_data_1s.csv
+models/2020/boat_data_100ms.csv
+models/2020/battery/df_train.csv
+models/2022/boat_data_1s.csv
+models/2020/esc/data/MAM17_PSIM_simulation_ideal.csv
+*.BIN
+*.smv

@@ -73,14 +73,14 @@ class Boat:
                 battery_output_power + battery_requested_output_power,
             ]
         )
-        mppt_eff = self.mppt.efficiency(pv_available_input_power)
-        if mppt_eff == 0:
+        mppt_eta = self.mppt.efficiency(pv_available_input_power)
+        if mppt_eta == 0:
             pv_output_power = pv_available_output_power
         else:
             pv_output_power = np.min(
                 [
                     pv_available_output_power,
-                    mppt_output_power / mppt_eff,
+                    mppt_output_power / mppt_eta,
                 ]
             )
         pv_input_power = pv_output_power / self.panel.efficiency

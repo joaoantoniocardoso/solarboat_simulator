@@ -1,49 +1,86 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
+from matplotlib.legend_handler import HandlerPathCollection, HandlerLine2D
+from matplotlib.colors import Normalize
+from matplotlib.collections import PathCollection
+from matplotlib.cm import ScalarMappable
 
 
 def plot_events_data(
-    fig, events: list[dict], df: pd.DataFrame, column_names: list[str], suptitle: str
+    events: list[dict],
+    df: pd.DataFrame,
+    column_names: list[str],
+    normalize=False,
 ) -> None:
+    import matplotlib.pyplot as plt
     from matplotlib.patches import ConnectionPatch
+    import matplotlib.dates as mdates
 
-    # Dive the figure in two gridspecs
+    df = df.copy(deep=True)
+
+    if normalize:
+        df[column_names] = df[column_names] / df[column_names].max()
+
+    # Fixed height per event and minimum height for the left panel
+    height_per_event = 1.5
+    min_left_height = 5  # Minimum height for the left panel
+    right_total_height = len(events) * height_per_event
+
+    # Compute the figure height, with the possibility of stretching the left plot
+    total_height = max(min_left_height, right_total_height)
+    blank_padding = max(
+        (total_height - right_total_height) / 2 / height_per_event, 0.1
+    )  # Ensure non-zero padding
+
+    width, _ = figsize()
+    fig = plt.figure(figsize=(width, total_height), constrained_layout=True)
+
+    # Divide the figure into two gridspecs with flexible allocation
     (gs_left, gs_right) = fig.add_gridspec(1, 2, width_ratios=[2, 10])
 
     # Setup the left plot
     ax_left = fig.add_subplot(gs_left)
-    # Add all lineplots
-    for column_name in column_names:
-        ax_left.plot(df[column_name], df["timestamp"], label=column_name)
     ax_left.invert_yaxis()
+    interval = 4
+    ax_left.yaxis.set_major_locator(mdates.HourLocator(interval=interval))
+    ax_left.yaxis.set_major_formatter(mdates.DateFormatter("%d/%m %H:%M"))
+    ax_left.set_ylabel("Time")
+    ax_left.set_xlabel("Values")
+    for column_name in column_names:
+        ax_left.plot(df[column_name], df.index, label=column_name, alpha=0.8)
 
-    # ax_left.yaxis.set_major_locator(mdates.HourLocator(interval=2))
-    # plt.xticks(np.linspace(*ax_left.get_xlim(), 3))  # type: ignore
+    if normalize:
+        ax_left.set_xlim([0, 1])
 
-    ax_right = gs_right.subgridspec(len(events), 1)
+    # Adjust right panel height with padding
+    height_ratios = [blank_padding] + [1] * len(events) + [blank_padding]
+    ax_right = gs_right.subgridspec(len(height_ratios), 1, height_ratios=height_ratios)
+
     for i, event in enumerate(events):
-        df_sel = df[
-            (df["timestamp"] >= event["start"]) & (df["timestamp"] <= event["end"])
-        ]
+        df_sel = df[(df.index >= event["start"]) & (df.index <= event["end"])]
 
-        ax = fig.add_subplot(ax_right[i])
+        ax = fig.add_subplot(ax_right[i + 1])  # Offset by 1 to account for top padding
         ax.set_title(event["name"], loc="center")
 
         # Add all lineplots
         for column_name in column_names:
-            ax.plot(df_sel["timestamp"], df_sel[column_name], label=column_name)
+            ax.plot(df_sel.index, df_sel[column_name], label=column_name, alpha=0.8)
 
         # Setup axis
-        # ax.set_ylabel('$V(t) [V]$')
         ax.yaxis.set_label_position("right")
         ax.yaxis.tick_right()
-        plt.yticks(np.linspace(*ax.get_ylim(), 3))  # type: ignore
-
-        ax.set_xlim((df_sel["timestamp"].iloc[0], df_sel["timestamp"].iloc[-1]))
+        if not df_sel.empty:
+            ax.set_xlim((df_sel.index[0], df_sel.index[-1]))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        if i == len(events) - 1:
+            ax.set_xlabel("Time")
+        if normalize:
+            ax.set_ylim([0, 1])
 
         # Create the shaded area
-        ax_left.axhspan(event["start"], event["end"], facecolor="gray", alpha=0.25)
+        ax_left.axhspan(event["start"], event["end"], facecolor="gray", alpha=0.5)
 
         # Create the connection patches from the shaded area to this plot
         ylim = ax.get_xlim()
@@ -69,7 +106,7 @@ def plot_events_data(
             )
         )
 
-    fig.suptitle(suptitle)
+    return fig
 
 
 def pallete():
@@ -173,8 +210,12 @@ def config_matplotlib(
             # Tex
             "text.usetex": True,
             "text.latex.preamble": r"\usepackage{amsmath} \usepackage{amssymb} \usepackage{icomma}",
+            "figure.constrained_layout.use": True,
+            "axes.formatter.useoffset": False,
+            "axes.formatter.limits": (-3, 3),
         }
     )
+    matplotlib.pyplot.ioff()
 
 
 def fig_save_and_show(
@@ -182,6 +223,11 @@ def fig_save_and_show(
 ):
     """
     Save the current figure and show it with a title.
+
+    NOTE: for a good result, the fig should not have been proccessed w/ tight_layout,
+    and the subplot called with "constrained" layout (e.g.: `plt.subplots(layout="constrained")`)
+    For instance, one can set the rc parameter as in `plt.rcParams['figure.constrained_layout.use'] = True`,
+    but still care must be taken not to call tight_layout(). More on: https://matplotlib.org/stable/users/explain/axes/constrainedlayout_guide.html#sphx-glr-users-explain-axes-constrainedlayout-guide-py
 
     Args:
         filename (str, optional): The filename of the saved figure file, with file extension.
@@ -195,56 +241,314 @@ def fig_save_and_show(
     Returns:
         None
 
-    Examples:
+    Example:
+        ```
+        import matplotlib.pyplot as plt
+
+        subplots = (2,2)
+        fig = plt.subplots(*subplots, figsize=figsize(subplots=subplots), layout="constrained")
         fig_save_and_show("path/to/save.pdf", "Save Title", "Show Title")
+        ```
     """
+
+    def update_handle(handle, orig):
+        handle.update_from(orig)
+        handle.set_alpha(1)
+
+    save_title = save_title.replace("_", "\_") + "\n"
 
     if fig is None:
         fig = plt.gcf()
-    if ax is None:
-        ax = plt.gca()
 
-    fig_legend_params = dict(
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0),
-        ncol=ncol,
-        frameon=False,  # Removes the legend frame
-    )
+        if fig is None:
+            return
+
+    if ax is None:
+        axes = fig.get_axes()
+
+        if not axes:
+            return
+
+        ax = axes[0]
 
     # Add a common legend at the bottom
     handles, labels = ax.get_legend_handles_labels()
-    legend = fig.legend(
-        handles,
-        labels,
-        **fig_legend_params,
-        **fig_legend_kws,
-    )
+    if len(handles) | len(labels) > 0:
 
-    # Dynamically adjust bbox_to_anchor based on the legend height
-    legend_height = legend.get_window_extent().height / plt.rcParams["figure.dpi"]
-    fig_legend_params["bbox_to_anchor"] = (0.5, -0.25 * legend_height)
+        fig_legend_params = dict(
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0),
+            ncol=ncol,
+            frameon=False,  # Removes the legend frame
+            handler_map={
+                PathCollection: HandlerPathCollection(update_func=update_handle),
+                plt.Line2D: HandlerLine2D(update_func=update_handle),
+            },
+        )
 
-    # Redraw the legend with the adjusted bbox_to_anchor
-    legend.remove()
-    fig.legend(
-        handles,
-        labels,
-        **fig_legend_params,
-        **fig_legend_kws,
-    )
+        legend = fig.legend(
+            handles,
+            labels,
+            **fig_legend_params,
+            **fig_legend_kws,
+        )
 
-    # Save the image
-    plt.tight_layout()
+        # Dynamically adjust bbox_to_anchor based on the legend height
+        legend_height = legend.get_window_extent().height / plt.rcParams["figure.dpi"]
+        fig_legend_params["bbox_to_anchor"] = (0.5, -0.25 * legend_height)
 
+        # Redraw the legend with the adjusted bbox_to_anchor
+        legend.remove()
+        fig.legend(
+            handles,
+            labels,
+            **fig_legend_params,
+            **fig_legend_kws,
+        )
+
+    # Save the image without and its tittle in different files
+    original_fig = fig
     if filename:
-        plt.savefig(filename)
+        fig.suptitle(None)
 
-    # Save the title
-    if filename:
+        fig.savefig(filename)
+
         with open(f"{filename}.title", "w") as file:
             file.write(save_title)
 
+    fig = original_fig
+
     # Show the image with the title
-    plt.suptitle(show_title)
-    plt.tight_layout()
+    fig.suptitle(show_title)
+
     plt.show()
+
+
+def _levels_from_percentiles(values, *, percentiles=None, pmin=None, pmax=None, n=None):
+    """
+    Build monotonically increasing contour levels from percentiles.
+    - Either pass `percentiles=[...]` explicitly, OR pass pmin/pmax/n.
+    - Returns a 1D strictly increasing float array (len>=2).
+    """
+    v = np.asarray(values, float)
+    v = v[np.isfinite(v)]
+    if v.size < 2:
+        raise ValueError("Not enough finite values to compute percentile levels.")
+
+    if percentiles is None:
+        if pmin is None:
+            pmin = 1.0
+        if pmax is None:
+            pmax = 99.0
+        if n is None:
+            n = 20
+        percentiles = np.linspace(float(pmin), float(pmax), int(n))
+    else:
+        percentiles = np.asarray(percentiles, float)
+
+    # Clamp to [0,100]
+    percentiles = np.clip(percentiles, 0.0, 100.0)
+
+    levels = np.nanpercentile(v, percentiles)
+
+    # Make strictly increasing: remove duplicates and enforce monotonicity
+    levels = np.unique(levels)
+
+    # Need at least 2 levels for contour/contourf
+    if levels.size < 2:
+        lo = float(np.nanmin(v))
+        hi = float(np.nanmax(v))
+        if np.isclose(lo, hi):
+            raise ValueError(
+                "Values are (nearly) constant; cannot build contour levels."
+            )
+        levels = np.array([lo, hi], float)
+
+    return levels
+
+
+def plot_efficiency_map_scattered(
+    df,
+    *,
+    x: str,
+    y: str,
+    z: str,
+    nx: int = 200,
+    ny: int = 200,
+    method: str = "linear",  # "linear", "nearest", "cubic"
+    cmap: str = "viridis",
+    fill_value=np.nan,
+    # Masking
+    mask_col: str | None = None,  # e.g. "motor_p_out"
+    mask_min: float | None = None,  # e.g. 0
+    # Filled contour levels (percentile-configurable)
+    fill: bool = True,
+    fill_alpha: float = 1.0,
+    levels: int | list[float] | None = None,  # if provided, used directly
+    level_source: str = "points",  # "points" or "grid"
+    level_percentiles: (
+        list[float] | None
+    ) = None,  # explicit percentiles, e.g. [2,5,10,...,98]
+    level_pmin: float = 0.0,
+    level_pmax: float = 100.0,
+    level_n: int = 100,
+    # Line contours (percentile-configurable)
+    contour_lines: bool = False,
+    line_levels: int | list[float] | None = None,  # if provided, used directly
+    line_source: str = "points",  # "points" or "grid"
+    line_percentiles: list[float] | None = None,
+    line_pmin: float = 0,
+    line_pmax: float = 100.0,
+    line_n: int = 10,
+    line_alpha: float = 0.8,
+    line_colors: str | None = None,
+    label_lines: int = 0,
+    line_label_fmt: str = "%.2f",
+    label_fontsize: int = 11,
+    # Cosmetics
+    title: str | None = None,
+    xlabel: str | None = None,
+    ylabel: str | None = None,
+    cbar_label: str | None = None,
+    show_points: bool = False,
+    point_size: float = 6.0,
+    point_alpha: float = 0.35,
+):
+    """
+    Interpolate scattered (x,y)->z data onto a regular grid and plot an efficiency map.
+
+    Percentile behavior:
+      - If `levels` is None: uses percentiles (level_* args) to build filled contour levels.
+      - If `line_levels` is None and contour_lines=True: uses percentiles (line_* args) for line levels.
+
+    Returns: (fig, ax, out) where out contains X,Y,Z + selected levels.
+    """
+    # Extract arrays
+    xv = np.asarray(df[x], float)
+    yv = np.asarray(df[y], float)
+    zv = np.asarray(df[z], float)
+
+    mask = np.isfinite(xv) & np.isfinite(yv) & np.isfinite(zv)
+
+    if mask_col is not None and mask_min is not None:
+        mv = np.asarray(df[mask_col], float)
+        mask &= np.isfinite(mv) & (mv > float(mask_min))
+
+    xv, yv, zv = xv[mask], yv[mask], zv[mask]
+    if xv.size < 3:
+        raise ValueError("Not enough valid points to interpolate (need >= 3).")
+
+    # Regular grid
+    x_grid = np.linspace(float(np.min(xv)), float(np.max(xv)), int(nx))
+    y_grid = np.linspace(float(np.min(yv)), float(np.max(yv)), int(ny))
+    X, Y = np.meshgrid(x_grid, y_grid, indexing="xy")
+
+    # Interpolate
+    Z = griddata(
+        points=(xv, yv),
+        values=zv,
+        xi=(X, Y),
+        method=method,
+        fill_value=fill_value,
+        rescale=True,
+    )
+
+    # Decide where to compute percentile levels from
+    src_points = zv
+    src_grid = Z
+
+    def pick_source(which: str):
+        if which == "points":
+            return src_points
+        if which == "grid":
+            return src_grid
+        raise ValueError("level_source/line_source must be 'points' or 'grid'")
+
+    # Filled contour levels
+    if levels is None:
+        base = pick_source(level_source)
+        levels_arr = _levels_from_percentiles(
+            base,
+            percentiles=level_percentiles,
+            pmin=level_pmin,
+            pmax=level_pmax,
+            n=level_n,
+        )
+    else:
+        levels_arr = np.asarray(levels, float)
+
+    # Line contour levels
+    if contour_lines:
+        if line_levels is None:
+            base = pick_source(line_source)
+            line_levels_arr = _levels_from_percentiles(
+                base,
+                percentiles=line_percentiles,
+                pmin=line_pmin,
+                pmax=line_pmax,
+                n=line_n,
+            )
+        else:
+            line_levels_arr = np.asarray(line_levels, float)
+    else:
+        line_levels_arr = None
+
+    # Color normalization: use full finite range of chosen source for stability
+    norm_src = pick_source(level_source)
+    norm_src = np.asarray(norm_src, float)
+    norm_src = norm_src[np.isfinite(norm_src)]
+    vmin = float(np.nanmin(norm_src))
+    vmax = float(np.nanmax(norm_src))
+    norm = Normalize(vmin=vmin, vmax=vmax)
+
+    # Plot
+    fig, ax = plt.subplots()
+
+    if fill:
+        cf = ax.contourf(
+            X, Y, Z, levels=levels_arr, cmap=cmap, norm=norm, alpha=fill_alpha
+        )
+
+    sm = ScalarMappable(norm=norm, cmap=cmap)
+    sm.set_array([])
+    fig.colorbar(sm, ax=ax, label=(cbar_label or z))
+
+    if contour_lines:
+        cs = ax.contour(
+            X,
+            Y,
+            Z,
+            levels=line_levels_arr,
+            colors=line_colors,
+            cmap=None if line_colors else cmap,
+            norm=norm,
+            alpha=float(line_alpha),
+        )
+
+        for _ in range(label_lines):
+            ax.clabel(
+                cs, fmt=line_label_fmt, fontsize=int(label_fontsize), colors="black"
+            )
+
+    if show_points:
+        ax.scatter(xv, yv, s=float(point_size), alpha=float(point_alpha))
+
+    ax.set_xlabel(xlabel or x)
+    ax.set_ylabel(ylabel or y)
+    ax.set_title(title)
+    ax.grid(True, linestyle="--", alpha=0.5)
+
+    out = {
+        "X": X,
+        "Y": Y,
+        "Z": Z,
+        "x_points": xv,
+        "y_points": yv,
+        "z_points": zv,
+        "mask_used": mask,
+        "x_grid": x_grid,
+        "y_grid": y_grid,
+        "levels": levels_arr,
+        "line_levels": line_levels_arr,
+    }
+    return fig, ax, out
