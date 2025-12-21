@@ -12,82 +12,121 @@ def plot_events_data(
     events: list[dict],
     df: pd.DataFrame,
     column_names: list[str],
-    normalize=False,
-) -> None:
+    normalize: bool = False,
+):
+    import numpy as np
     import matplotlib.pyplot as plt
     from matplotlib.patches import ConnectionPatch
     import matplotlib.dates as mdates
 
+    # Copy to avoid mutating caller data
     df = df.copy(deep=True)
 
     if normalize:
         df[column_names] = df[column_names] / df[column_names].max()
 
-    # Fixed height per event and minimum height for the left panel
-    height_per_event = 1.5
-    min_left_height = 5  # Minimum height for the left panel
+    # -----------------------------
+    # Spacing that scales with N
+    # -----------------------------
+    n = max(len(events), 1)
+
+    # Event axis height (inches): large for small N, shrinks smoothly for large N.
+    base_height_per_event = 2.2
+    min_height_per_event = 0.9
+    height_per_event = max(
+        min_height_per_event,
+        base_height_per_event * (6 / max(n, 6)) ** 0.4,
+    )
+
+    # Figure height (inches)
+    min_left_height = 5.0
     right_total_height = len(events) * height_per_event
-
-    # Compute the figure height, with the possibility of stretching the left plot
     total_height = max(min_left_height, right_total_height)
-    blank_padding = max(
-        (total_height - right_total_height) / 2 / height_per_event, 0.1
-    )  # Ensure non-zero padding
 
+    # Right-panel top/bottom padding as fraction of one event row (dimensionless)
+    blank_padding = max(0.15, 0.6 / n)
+
+    # Spacing between event axes (dimensionless GridSpec hspace)
+    right_hspace = max(0.2, 1.4 / n)
+
+    # -----------------------------
+    # Figure + outer layout
+    # -----------------------------
     width, _ = figsize()
     fig = plt.figure(figsize=(width, total_height), constrained_layout=True)
 
-    # Divide the figure into two gridspecs with flexible allocation
     (gs_left, gs_right) = fig.add_gridspec(1, 2, width_ratios=[2, 10])
 
-    # Setup the left plot
+    # -----------------------------
+    # Left plot (full timeline)
+    # -----------------------------
     ax_left = fig.add_subplot(gs_left)
     ax_left.invert_yaxis()
+
     interval = 4
     ax_left.yaxis.set_major_locator(mdates.HourLocator(interval=interval))
     ax_left.yaxis.set_major_formatter(mdates.DateFormatter("%d/%m %H:%M"))
     ax_left.set_ylabel("Time")
     ax_left.set_xlabel("Values")
+
     for column_name in column_names:
         ax_left.plot(df[column_name], df.index, label=column_name, alpha=0.8)
 
     if normalize:
         ax_left.set_xlim([0, 1])
 
-    # Adjust right panel height with padding
+    # -----------------------------
+    # Right plot (events stack)
+    # Keep the original padding-rows structure, but scale padding/hspace with N.
+    # -----------------------------
+    if len(events) == 0:
+        return fig  # nothing to plot on the right
+
     height_ratios = [blank_padding] + [1] * len(events) + [blank_padding]
-    ax_right = gs_right.subgridspec(len(height_ratios), 1, height_ratios=height_ratios)
+    ax_right = gs_right.subgridspec(
+        len(height_ratios),
+        1,
+        height_ratios=height_ratios,
+        hspace=right_hspace,
+    )
+
+    # Cache left x-limits once (used by connection patches)
+    xlim_left = ax_left.get_xlim()
 
     for i, event in enumerate(events):
         df_sel = df[(df.index >= event["start"]) & (df.index <= event["end"])]
 
-        ax = fig.add_subplot(ax_right[i + 1])  # Offset by 1 to account for top padding
+        ax = fig.add_subplot(ax_right[i + 1])  # +1 due to top padding row
         ax.set_title(event["name"], loc="center")
 
-        # Add all lineplots
         for column_name in column_names:
             ax.plot(df_sel.index, df_sel[column_name], label=column_name, alpha=0.8)
 
-        # Setup axis
+        # Axis styling
         ax.yaxis.set_label_position("right")
         ax.yaxis.tick_right()
+
         if not df_sel.empty:
             ax.set_xlim((df_sel.index[0], df_sel.index[-1]))
+
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
         if i == len(events) - 1:
             ax.set_xlabel("Time")
+
         if normalize:
             ax.set_ylim([0, 1])
 
-        # Create the shaded area
+        # Shaded selection on left plot
         ax_left.axhspan(event["start"], event["end"], facecolor="gray", alpha=0.5)
 
-        # Create the connection patches from the shaded area to this plot
-        ylim = ax.get_xlim()
-        xlim = ax_left.get_xlim()
+        # Connection patches:
+        # Map the *right plot's* x-range to y-coordinates on the left plot's time axis.
+        # (This is the same behavior as your original code.)
+        xspan_right = ax.get_xlim()
+
         fig.add_artist(
             ConnectionPatch(
-                xyA=(xlim[-1], ylim[0]),
+                xyA=(xlim_left[-1], xspan_right[0]),
                 coordsA=ax_left.transData,
                 xyB=(0, 1),
                 coordsB=ax.transAxes,
@@ -97,7 +136,7 @@ def plot_events_data(
         )
         fig.add_artist(
             ConnectionPatch(
-                xyA=(xlim[-1], ylim[-1]),
+                xyA=(xlim_left[-1], xspan_right[1]),
                 coordsA=ax_left.transData,
                 xyB=(0, 0),
                 coordsB=ax.transAxes,
@@ -219,7 +258,13 @@ def config_matplotlib(
 
 
 def fig_save_and_show(
-    filename, save_title, show_title, ncol=4, fig=None, ax=None, **fig_legend_kws
+    filename,
+    save_title,
+    show_title,
+    ncol=4,
+    fig=None,
+    ax=None,
+    **fig_legend_kws,
 ):
     """
     Save the current figure and show it with a title.
@@ -255,72 +300,168 @@ def fig_save_and_show(
         handle.update_from(orig)
         handle.set_alpha(1)
 
-    save_title = save_title.replace("_", "\_") + "\n"
-
     if fig is None:
         fig = plt.gcf()
-
         if fig is None:
             return
 
-    if ax is None:
-        axes = fig.get_axes()
+    # Collect subplot-based axes (ignore helper axes)
+    plot_axes = []
+    for a in fig.get_axes():
+        try:
+            a.get_subplotspec()
+        except Exception:
+            continue
+        plot_axes.append(a)
+    if not plot_axes:
+        return
 
-        if not axes:
-            return
+    # Collect legend entries (deduplicated)
+    handles, labels = [], []
+    for a in plot_axes:
+        h, l = a.get_legend_handles_labels()
+        for hh, ll in zip(h, l):
+            if ll not in labels:
+                handles.append(hh)
+                labels.append(ll)
 
-        ax = axes[0]
+    for leg in list(fig.legends):
+        leg.remove()
 
-    # Add a common legend at the bottom
-    handles, labels = ax.get_legend_handles_labels()
-    if len(handles) | len(labels) > 0:
+    fig.canvas.draw()
+    if fig.get_constrained_layout():
+        fig.set_constrained_layout(False)
 
-        fig_legend_params = dict(
-            loc="lower center",
-            bbox_to_anchor=(0.5, 0),
+    fig_width_in, fig_height_in = fig.get_size_inches()
+    renderer = fig.canvas.get_renderer()
+
+    # Content bounds (including labels/ticks) in figure inches.
+    x0s = []
+    x1s = []
+    y0s = []
+    y1s = []
+    for a in plot_axes:
+        bbox = a.get_tightbbox(renderer)
+        if bbox is not None and np.isfinite([bbox.x0, bbox.x1, bbox.y0, bbox.y1]).all():
+            x0s.append(bbox.x0 / fig.dpi)
+            x1s.append(bbox.x1 / fig.dpi)
+            y0s.append(bbox.y0 / fig.dpi)
+            y1s.append(bbox.y1 / fig.dpi)
+        else:
+            pos = a.get_position()
+            x0s.append(pos.x0 * fig_width_in)
+            x1s.append(pos.x1 * fig_width_in)
+            y0s.append(pos.y0 * fig_height_in)
+            y1s.append(pos.y1 * fig_height_in)
+
+    content_x0_in = min(x0s)
+    content_x1_in = max(x1s)
+    content_y0_in = min(y0s)
+    content_y1_in = max(y1s)
+
+    x0_center = max(0.0, min(x0s))
+    x1_center = min(fig_width_in, max(x1s))
+    x_center = (x0_center + x1_center) / 2 / fig_width_in
+
+    if handles and labels:
+        leg = fig.legend(
+            handles,
+            labels,
+            loc="upper center",
+            bbox_to_anchor=(x_center, 0.0),
+            bbox_transform=fig.transFigure,
             ncol=ncol,
-            frameon=False,  # Removes the legend frame
+            frameon=False,
+            columnspacing=1.2,
+            handletextpad=0.8,
+            labelspacing=0.6,
+            borderaxespad=0.0,
+            borderpad=0.2,
             handler_map={
                 PathCollection: HandlerPathCollection(update_func=update_handle),
                 plt.Line2D: HandlerLine2D(update_func=update_handle),
             },
-        )
-
-        legend = fig.legend(
-            handles,
-            labels,
-            **fig_legend_params,
             **fig_legend_kws,
         )
+        leg.set_in_layout(True)
+    else:
+        leg = None
 
-        # Dynamically adjust bbox_to_anchor based on the legend height
-        legend_height = legend.get_window_extent().height / plt.rcParams["figure.dpi"]
-        fig_legend_params["bbox_to_anchor"] = (0.5, -0.25 * legend_height)
+    title_obj = fig._suptitle
+    if title_obj is None:
+        title_obj = fig.suptitle(show_title)
+    else:
+        title_obj.set_text(show_title)
+    title_obj.set_in_layout(True)
+    title_obj.set_ha("center")
+    title_obj.set_va("bottom")
+    title_obj.set_x(x_center)
+    title_obj.set_y(1.0)
+    title_obj.set_multialignment("center")
 
-        # Redraw the legend with the adjusted bbox_to_anchor
-        legend.remove()
-        fig.legend(
-            handles,
-            labels,
-            **fig_legend_params,
-            **fig_legend_kws,
-        )
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
 
-    # Save the image without and its tittle in different files
-    original_fig = fig
+    title_height_in = 0.0
+    if title_obj is not None:
+        title_bbox = title_obj.get_window_extent(renderer)
+        title_height_in = title_bbox.height / fig.dpi
+
+    legend_height_in = 0.0
+    if leg is not None:
+        leg_bbox = leg.get_window_extent(renderer)
+        legend_height_in = leg_bbox.height / fig.dpi
+
+    font_size = float(plt.rcParams.get("font.size", 12))
+    legend_pad_in = max(2.0, 0.30 * font_size) / 72.27
+    title_pad_in = max(2.0, 0.45 * font_size) / 72.27
+
+    top_margin_in = fig_height_in - content_y1_in
+    bottom_margin_in = content_y0_in
+    extra_top = max(0.0, title_height_in + title_pad_in - top_margin_in)
+    extra_bottom = max(0.0, legend_height_in + legend_pad_in - bottom_margin_in)
+
+    if extra_top > 0.0 or extra_bottom > 0.0:
+        new_height_in = fig_height_in + extra_top + extra_bottom
+        fig.set_size_inches(fig_width_in, new_height_in, forward=True)
+        for a in plot_axes:
+            pos = a.get_position()
+            y0_in = pos.y0 * fig_height_in + extra_bottom
+            y1_in = pos.y1 * fig_height_in + extra_bottom
+            a.set_position(
+                [
+                    pos.x0,
+                    y0_in / new_height_in,
+                    pos.width,
+                    (y1_in - y0_in) / new_height_in,
+                ]
+            )
+        content_y0_in += extra_bottom
+        content_y1_in += extra_bottom
+        fig_height_in = new_height_in
+
+    x_center = (content_x0_in + content_x1_in) / 2 / fig_width_in
+    title_y = (content_y1_in + title_pad_in) / fig_height_in
+    title_obj.set_x(x_center)
+    title_obj.set_y(title_y)
+
+    if leg is not None:
+        legend_y = (content_y0_in - legend_pad_in) / fig_height_in
+        leg.set_bbox_to_anchor((x_center, legend_y), transform=fig.transFigure)
+
+    # Save (no title in image)
     if filename:
-        fig.suptitle(None)
-
+        title_obj.set_text("")
+        title_obj.set_in_layout(False)
+        fig.canvas.draw()
         fig.savefig(filename)
+        with open(f"{filename}.title", "w") as f:
+            f.write(save_title.replace("_", r"\_") + "\n")
+        title_obj.set_in_layout(False)
 
-        with open(f"{filename}.title", "w") as file:
-            file.write(save_title)
-
-    fig = original_fig
-
-    # Show the image with the title
-    fig.suptitle(show_title)
-
+    # Show with title
+    title_obj.set_text(show_title)
+    title_obj.set_in_layout(True)
     plt.show()
 
 

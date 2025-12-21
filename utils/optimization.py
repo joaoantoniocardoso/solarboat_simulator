@@ -1,3 +1,5 @@
+import json
+
 from sklearn.preprocessing import RobustScaler
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
@@ -216,6 +218,41 @@ def convert_to_model_params(input_params: dict):
             params[base] = [input_params.pop(k) for _, k in indexed_keys]
 
     return input_params | params
+
+
+def _json_default(value):
+    if isinstance(value, np.ndarray):
+        return {
+            "__ndarray__": True,
+            "dtype": str(value.dtype),
+            "shape": value.shape,
+            "data": value.tolist(),
+        }
+    if isinstance(value, np.generic):
+        return value.item()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def _json_object_hook(obj):
+    if obj.get("__ndarray__") is True:
+        arr = np.array(obj["data"], dtype=obj["dtype"])
+        shape = tuple(obj["shape"])
+        if arr.shape != shape:
+            arr = arr.reshape(shape)
+        return arr
+    return obj
+
+
+def save_model_params_to_json(filepath: str, params: dict):
+    """Save model parameters to a JSON file."""
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(params, f, indent=2, sort_keys=True, default=_json_default)
+
+
+def load_model_params_from_json(filepath: str) -> dict:
+    """Load model parameters from a JSON file."""
+    with open(filepath, "r", encoding="utf-8") as f:
+        return json.load(f, object_hook=_json_object_hook)
 
 
 def estimate_polynomial_coefficient_bounds(

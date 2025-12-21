@@ -259,9 +259,9 @@ def get_sections():
         },
     ]
 
-    events = pd.DataFrame(events).set_index('name')
-    events['start'] = events['start'].dt.tz_convert(None)
-    events['end'] = events['end'].dt.tz_convert(None)
+    events = pd.DataFrame(events).set_index("name")
+    events["start"] = events["start"].dt.tz_convert(None)
+    events["end"] = events["end"].dt.tz_convert(None)
 
     return events, tzinfo
 
@@ -291,7 +291,9 @@ def export_dataframe_to_latex(filename, label, caption, df_steady_state_mean):
             caption=caption,
             label=label,
             float_format="%.2f",
-            column_format="|".join(["l"]*(df_steady_state_mean.index.nlevels)) + "|" + "|".join(["c"]*len(df_steady_state_mean.columns)),
+            column_format="|".join(["l"] * (df_steady_state_mean.index.nlevels))
+            + "|"
+            + "|".join(["c"] * len(df_steady_state_mean.columns)),
             escape=True,
             decimal=",",
             position="h!",
