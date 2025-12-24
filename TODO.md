@@ -6,10 +6,4 @@ simulação devem condizer com os dados desta, e de outras provas.
 
 # TODO
 
-- [x] Atualizar os equacionamentos e rodar novamente as otimizações dos modelos:
-  - [x] Motor: dividimos o motor_k em motor_kv e motor_kq
-  - [x] Propulsion: atualizamos as equações
-  - [x] ESC: atualizamos as equações
-  - [x] PV: atualizamos as equações
-- [x] Re-escrever o equacionamento no arquivo latex baseado no equacionamento de solar_boat_equations.ipynb
-- [ ] Caso de uso básico:
+- [ ] Rerun each model's notebooks, adding the fig_save_and_show where it's missing
