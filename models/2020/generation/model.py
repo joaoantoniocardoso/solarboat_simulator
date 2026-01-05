@@ -19,12 +19,12 @@ class Generation:
 
         # Inputs
         pv_g = u[0]  # Total incident irradiance [W/m^2]
-        batt_v = u[1]  # Battery voltage [V]
+        mppt_v_out = u[1]  # MPPT Output Voltage (battery) [V]
         mppt_d = u[2]  # MPPT Duty Cycle
 
         # Output equations
         pv_p_out = pv_g * pv_S * pv_eta
-        mppt_i_out = mppt_eta * pv_p_out / batt_v
+        mppt_i_out = mppt_eta * pv_p_out / mppt_v_out
         mppt_i_in = mppt_i_out * (mppt_d / (1 - mppt_d))
         mppt_v_in = pv_p_out / mppt_i_in
 
@@ -37,7 +37,7 @@ class Generation:
             cls._outputs,
             name="generation",
             states=None,
-            inputs=("pv_g", "batt_v", "mppt4_d"),
-            outputs=("mppt4_i_out", "mppt4_i_in", "mppt4_v_in"),
+            inputs=("pv_g", "mppt_v_out", "mppt4_d"),
+            outputs=("mppt_i_out", "mppt_i_in", "mppt_v_in"),
             params=params,
         )
