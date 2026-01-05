@@ -193,8 +193,8 @@ def get_events():
     ]
 
     events = pd.DataFrame(events).set_index("name")
-    events["start"] = events["start"].dt.tz_convert(None)
-    events["end"] = events["end"].dt.tz_convert(None)
+    events["start"] = events["start"].dt.tz_localize(None)
+    events["end"] = events["end"].dt.tz_localize(None)
 
     return events, tzinfo
 
@@ -260,8 +260,8 @@ def get_sections():
     ]
 
     events = pd.DataFrame(events).set_index("name")
-    events["start"] = events["start"].dt.tz_convert(None)
-    events["end"] = events["end"].dt.tz_convert(None)
+    events["start"] = events["start"].dt.tz_localize(None)
+    events["end"] = events["end"].dt.tz_localize(None)
 
     return events, tzinfo
 
