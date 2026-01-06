@@ -37,7 +37,7 @@ class Generation:
             cls._outputs,
             name="generation",
             states=None,
-            inputs=("pv_g", "mppt_v_out", "mppt4_d"),
+            inputs=("pv_g", "mppt_v_out", "mppt_d"),
             outputs=("mppt_i_out", "mppt_i_in", "mppt_v_in"),
             params=params,
         )
