@@ -558,9 +558,9 @@ def plot_optimization_error(
     plt.ylabel("Objective (MSE)")
     plt.title("Optimization progress")
     plt.grid(True)
-    plt.legend()
 
     if show:
+        plt.legend()
         plt.show()
 
     return fig
@@ -587,7 +587,8 @@ def plot_compare(df_true, df_pred, column: str, show=True):
     ax1.plot(df_pred.index, df_true[column], label="data")
     ax1.plot(df_pred.index, df_pred[column], label="model")
     ax1.set_title(f"Comparing {column}")
-    ax1.legend()
+    if show:
+        ax1.legend()
 
     (
         y_residuals,
@@ -609,7 +610,8 @@ def plot_compare(df_true, df_pred, column: str, show=True):
     )
 
     ax2.set_title(title, fontsize=12)
-    ax2.legend()
+    if show:
+        ax2.legend()
 
     ax1.set_ylabel("Value")
 
