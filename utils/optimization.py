@@ -351,6 +351,7 @@ def plot_optimization_params(
     line_width=1.5,
     max_columns=5,
     show=True,
+    rasterized=True,
 ):
     # Extract data from the result's history
     parameters = []
@@ -402,6 +403,7 @@ def plot_optimization_params(
             generations,
             alpha=scatter_alpha,
             s=scatter_size,
+            rasterized=rasterized,
             label="Samples",
         )
 
