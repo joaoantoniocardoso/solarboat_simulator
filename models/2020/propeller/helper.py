@@ -229,7 +229,7 @@ def _estimate_hull_C_T_dynamic(df, params):
 
 
 def _estimate_hull_C_T(params):
-    df = load_boat_data("../../../models/2020/boat_data_1s.csv")
+    df = load_boat_data("../../../models/2020/boat_data_50ms.csv")
 
     hull_C_T1 = _estimate_hull_C_T_steady(df, params)
     hull_C_T2 = _estimate_hull_C_T_dynamic(df, params)
@@ -431,16 +431,16 @@ def estimate_initial_values(
 def load_boat_data(filepath: str):
     rename_columns = {
         "Battery Pack Voltage": "batt_v",
+        "Battery Output Current": "batt_i_out",
         "ESC Duty Cycle": "pilot_d",
         "Motor Angular Speed": "motor_w",
-        "ESC Input Power": "esc_p_in",
-        "ESC Input Current": "esc_i_in",
+        "MPPTs Input Power": "mppts_p_in",
     }
     df = load_df(
         filename=filepath,
         start=None,
         end=None,
-        resample_rule=None,
+        resample_rule="1s",
         rename_columns=rename_columns,
         print_columns=False,
         iqr_threshold=None,
@@ -454,4 +454,5 @@ def load_boat_data(filepath: str):
             return a * motor_v
 
         df["hull_u"] = boat_speed_from_motor_v(df["batt_v"] * df["pilot_d"])
+
     return df
