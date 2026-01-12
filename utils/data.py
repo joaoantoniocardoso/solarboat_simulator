@@ -280,10 +280,6 @@ def export_dataframe_to_latex(filename, label, caption, df_steady_state_mean):
         str: A string representing the LaTeX code for the table.
     """
 
-    # Define constants for voltage and motor load torque steps
-    voltage_step = 36
-    motor_load_torque_step = 10
-
     # Generate the LaTeX table
     table = (
         df_steady_state_mean.to_latex(
