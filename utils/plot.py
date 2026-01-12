@@ -19,11 +19,10 @@ def plot_events_data(
     from matplotlib.patches import ConnectionPatch
     import matplotlib.dates as mdates
 
-    # Copy to avoid mutating caller data
-    df = df.copy(deep=True)
-
     if normalize:
-        df[column_names] = df[column_names] / df[column_names].max()
+        col_max = {c: df[c].max() for c in column_names}
+    else:
+        col_max = {}
 
     # -----------------------------
     # Spacing that scales with N
@@ -70,10 +69,13 @@ def plot_events_data(
     ax_left.set_xlabel("Values")
 
     for column_name in column_names:
-        ax_left.plot(df[column_name], df.index, label=column_name, alpha=0.8)
+        x = df[column_name]
+        if normalize:
+            x = x / col_max[column_name]
+        ax_left.plot(x, df.index, label=column_name, alpha=0.8)
 
     if normalize:
-        ax_left.set_xlim([0, 1])
+        ax_left.set_xlim((0, 1))
 
     # -----------------------------
     # Right plot (events stack)
@@ -94,27 +96,31 @@ def plot_events_data(
     xlim_left = ax_left.get_xlim()
 
     for i, event in enumerate(events):
-        df_sel = df[(df.index >= event["start"]) & (df.index <= event["end"])]
+        mask = (df.index >= event["start"]) & (df.index <= event["end"])
+        event_index = df.index[mask]
 
         ax = fig.add_subplot(ax_right[i + 1])  # +1 due to top padding row
         ax.set_title(event["name"], loc="center")
 
         for column_name in column_names:
-            ax.plot(df_sel.index, df_sel[column_name], label=column_name, alpha=0.8)
+            y = df.loc[mask, column_name]
+            if normalize:
+                y = y / col_max[column_name]
+            ax.plot(event_index, y, label=column_name, alpha=0.8)
 
         # Axis styling
         ax.yaxis.set_label_position("right")
         ax.yaxis.tick_right()
 
-        if not df_sel.empty:
-            ax.set_xlim((df_sel.index[0], df_sel.index[-1]))
+        if len(event_index) > 0:
+            ax.set_xlim((event_index[0], event_index[-1]))
 
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
         if i == len(events) - 1:
             ax.set_xlabel("Time")
 
         if normalize:
-            ax.set_ylim([0, 1])
+            ax.set_ylim((0, 1))
 
         # Shaded selection on left plot
         ax_left.axhspan(event["start"], event["end"], facecolor="gray", alpha=0.5)
