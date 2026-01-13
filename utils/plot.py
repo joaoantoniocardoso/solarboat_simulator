@@ -13,16 +13,72 @@ def plot_events_data(
     df: pd.DataFrame,
     column_names: list[str],
     normalize: bool = False,
+    *,
+    max_points: int | None = None,
+    max_points_per_event: int | None = None,
 ):
     import numpy as np
     import matplotlib.pyplot as plt
     from matplotlib.patches import ConnectionPatch
     import matplotlib.dates as mdates
 
+    index = df.index
+    n_rows = len(df)
+
+    # Downsample the left plot if requested (biggest single line(s)).
+    if max_points is not None and n_rows > max_points:
+        left_step = int(np.ceil(n_rows / max_points))
+    else:
+        left_step = 1
+    left_sel = slice(None, None, left_step)
+    index_left = index[left_sel]
+    n_left = len(index_left)
+
     if normalize:
         col_max = {c: df[c].max() for c in column_names}
+        # Reuse a single buffer for normalized left-plot values.
+        tmp_full = np.empty(n_left, dtype=float)
     else:
         col_max = {}
+        tmp_full = None
+
+    # Cache column arrays as views (no copy) for repeated slicing.
+    col_arrays = {c: df[c].to_numpy(copy=False) for c in column_names}
+
+    # Prefer integer slices when index is sorted to avoid allocating an N-sized
+    # boolean mask for each event.
+    index_is_sorted = bool(getattr(index, "is_monotonic_increasing", False))
+    if index_is_sorted:
+        event_slices: list[tuple[int, int]] = []
+        event_steps: list[int] = []
+        max_event_plot_len = 0
+
+        for event in events:
+            start = event["start"]
+            end = event["end"]
+            start_i = int(index.searchsorted(start, side="left"))
+            end_i = int(index.searchsorted(end, side="right"))
+            if end_i < start_i:
+                start_i, end_i = end_i, start_i
+
+            event_len = end_i - start_i
+            if max_points_per_event is not None and event_len > max_points_per_event:
+                step = int(np.ceil(event_len / max_points_per_event))
+            else:
+                step = 1
+
+            event_slices.append((start_i, end_i))
+            event_steps.append(step)
+            if event_len > 0:
+                max_event_plot_len = max(
+                    max_event_plot_len, (event_len + step - 1) // step
+                )
+
+        tmp_event = np.empty(max_event_plot_len, dtype=float) if normalize else None
+    else:
+        event_slices = None
+        event_steps = None
+        tmp_event = None
 
     # -----------------------------
     # Spacing that scales with N
@@ -69,10 +125,12 @@ def plot_events_data(
     ax_left.set_xlabel("Values")
 
     for column_name in column_names:
-        x = df[column_name]
+        x = col_arrays[column_name][left_sel]
         if normalize:
-            x = x / col_max[column_name]
-        ax_left.plot(x, df.index, label=column_name, alpha=0.8)
+            np.divide(x, col_max[column_name], out=tmp_full)
+            ax_left.plot(tmp_full, index_left, label=column_name, alpha=0.8)
+        else:
+            ax_left.plot(x, index_left, label=column_name, alpha=0.8)
 
     if normalize:
         ax_left.set_xlim((0, 1))
@@ -96,17 +154,42 @@ def plot_events_data(
     xlim_left = ax_left.get_xlim()
 
     for i, event in enumerate(events):
-        mask = (df.index >= event["start"]) & (df.index <= event["end"])
-        event_index = df.index[mask]
-
         ax = fig.add_subplot(ax_right[i + 1])  # +1 due to top padding row
         ax.set_title(event["name"], loc="center")
 
-        for column_name in column_names:
-            y = df.loc[mask, column_name]
-            if normalize:
-                y = y / col_max[column_name]
-            ax.plot(event_index, y, label=column_name, alpha=0.8)
+        if event_slices is not None:
+            start_i, end_i = event_slices[i]
+            step = event_steps[i]
+            event_index = index[start_i:end_i:step]
+
+            for column_name in column_names:
+                y_view = col_arrays[column_name][start_i:end_i:step]
+                if normalize:
+                    buf = tmp_event[: len(y_view)]
+                    np.divide(y_view, col_max[column_name], out=buf)
+                    ax.plot(event_index, buf, label=column_name, alpha=0.8)
+                else:
+                    ax.plot(event_index, y_view, label=column_name, alpha=0.8)
+        else:
+            # Fallback for unsorted indices: boolean mask selection.
+            mask = (index >= event["start"]) & (index <= event["end"])
+            event_index = index[mask]
+
+            event_len = len(event_index)
+            if max_points_per_event is not None and event_len > max_points_per_event:
+                step = int(np.ceil(event_len / max_points_per_event))
+                event_index = event_index[::step]
+            else:
+                step = 1
+
+            for column_name in column_names:
+                y_view = df.loc[mask, column_name].to_numpy(copy=False)[::step]
+                if normalize:
+                    buf = np.empty(len(y_view), dtype=float)
+                    np.divide(y_view, col_max[column_name], out=buf)
+                    ax.plot(event_index, buf, label=column_name, alpha=0.8)
+                else:
+                    ax.plot(event_index, y_view, label=column_name, alpha=0.8)
 
         # Axis styling
         ax.yaxis.set_label_position("right")
