@@ -14,8 +14,10 @@ without changing numerical behavior.
 """
 
 import csv
+import warnings
 import numpy as np
 import pandas as pd
+import vaex
 
 from utils.data import load_df
 from utils.models import eval_poly
@@ -499,9 +501,7 @@ def _estimate_hull_C_T_steady(df, params):
         Must contain:
         - ``df["motor_w"]``: motor angular speed [rad/s]
         - ``df["hull_u"]``: hull speed [m/s]
-
-        ``df.index`` is treated as time [s] when computing ``du/dt``.
-        [ASSUMPTION] If the index is not in seconds, the steady mask will be wrong.
+        - ``df["t"]`` time [s]
     - params: dict
         Must contain:
         - ``rho_water`` [kg/m³]
@@ -560,11 +560,30 @@ def _estimate_hull_C_T_steady(df, params):
     T_prop = rho_w * (prop_n**2) * (D**4) * KT
     T_eff = (1.0 - tded) * T_prop
 
-    dt = np.mean(np.diff(df.index.to_numpy(dtype=float)))
+    dt = np.mean(np.diff(df["t"].to_numpy(dtype=float)))
     du = np.gradient(df["hull_u"].to_numpy(), dt)
     du_abs = np.abs(du)
 
-    mask = (df["hull_u"] > 0.5) & (du_abs < 0.05) & np.isfinite(T_eff)
+    # Filter invalid operating points (e.g., motor stopped => prop_n ~ 0, J explodes)
+    # Keep J within a plausible band to avoid outlier-dominated C_T.
+    mask = (
+        (df["hull_u"] > 0.5)
+        & (du_abs < 0.05)
+        & np.isfinite(T_eff)
+        & np.isfinite(lam)
+        & (prop_n > 0.5)
+        & (lam > 0.1)
+        & (lam < 1.5)
+    )
+    n_mask = int(mask.sum())
+    n_total = int(len(df))
+    min_keep = max(50, int(0.01 * n_total))
+    if n_mask < min_keep:
+        warnings.warn(
+            f"hull_C_T steady: only {n_mask}/{n_total} points kept after filtering; "
+            "C_T may be unreliable."
+        )
+
     u_sel = df["hull_u"].to_numpy()[mask]
     Te_sel = T_eff.to_numpy()[mask]
 
@@ -582,8 +601,10 @@ def _estimate_hull_C_T_dynamic(df, params):
 
     Parameters
     - df: pandas.DataFrame
-        Must contain ``motor_w`` [rad/s] and ``hull_u`` [m/s].
-        ``df.index`` is treated as time [s].
+        Must contain:
+        - ``df["motor_w"]``: motor angular speed [rad/s]
+        - ``df["hull_u"]``: hull speed [m/s]
+        - ``df["t"]`` time [s]
     - params: dict
         Must contain the same fields as in ``_estimate_hull_C_T_steady`` plus:
         - ``hull_M`` [kg]
@@ -626,13 +647,31 @@ def _estimate_hull_C_T_dynamic(df, params):
     T_eff = (1.0 - tded) * T_prop
 
     # du/dt
-    dt = np.mean(np.diff(df.index.to_numpy(dtype=float)))
+    dt = np.mean(np.diff(df["t"].to_numpy(dtype=float)))
     du = np.gradient(df["hull_u"].to_numpy(), dt)
 
     y = T_eff.to_numpy() - m * du
     x = 0.5 * S_eff * (df["hull_u"].to_numpy() ** 2)
 
-    mask = np.isfinite(x) & np.isfinite(y) & (x > 0)
+    # Filter invalid operating points (e.g., motor stopped => prop_n ~ 0, J explodes)
+    mask = (
+        np.isfinite(x)
+        & np.isfinite(y)
+        & (x > 0)
+        & np.isfinite(lam)
+        & (prop_n > 0.5)
+        & (lam > 0.1)
+        & (lam < 1.5)
+    )
+    n_mask = int(mask.sum())
+    n_total = int(len(x))
+    min_keep = max(50, int(0.01 * n_total))
+    if n_mask < min_keep:
+        warnings.warn(
+            f"hull_C_T dynamic: only {n_mask}/{n_total} points kept after filtering; "
+            "C_T may be unreliable."
+        )
+
     x = x[mask]
     y = y[mask]
 
@@ -657,7 +696,9 @@ def _estimate_hull_C_T(params):
     - Final estimate is the arithmetic mean of the steady and dynamic estimates.
     """
 
-    df = load_boat_data("../../../models/2020/boat_data_50ms.csv")
+    df = load_boat_data("../../../models/2020/boat_data_50ms.csv")[
+        ["t", "motor_w", "hull_u"]
+    ]
 
     hull_C_T1 = _estimate_hull_C_T_steady(df, params)
     hull_C_T2 = _estimate_hull_C_T_dynamic(df, params)
@@ -993,13 +1034,13 @@ def load_boat_data(filepath: str):
         Dataframe with standardized columns (when present):
         - ``batt_v``: battery voltage [V]
         - ``batt_i_out``: battery output current [A]
-        - ``pilot_d``: ESC duty cycle [-]
+        - ``esc_d``: ESC duty cycle [-]
         - ``motor_w``: motor angular speed [rad/s]
         - ``mppts_p_in``: MPPT input power [W]
         - ``hull_u``: hull speed [m/s]
 
     Assumptions
-    - If ``hull_u`` is not present, it is approximated from ``batt_v * pilot_d``.
+    - If ``hull_u`` is not present, it is approximated from ``batt_v * esc_d``.
       [ASSUMPTION] This is a project-specific surrogate relationship.
 
     Notes
@@ -1009,23 +1050,26 @@ def load_boat_data(filepath: str):
     rename_columns = {
         "Battery Pack Voltage": "batt_v",
         "Battery Output Current": "batt_i_out",
-        "ESC Duty Cycle": "pilot_d",
+        "ESC Duty Cycle": "esc_d",
         "Motor Angular Speed": "motor_w",
         "MPPTs Input Power": "mppts_p_in",
     }
 
-    df = load_df(
-        filename=filepath,
-        start=None,
-        end=None,
-        resample_rule="1s",
-        rename_columns=rename_columns,
-        print_columns=False,
-        iqr_threshold=None,
-        cutoff_freq=None,
-        sampling_rate=1,
-        order=1,
+    df = (
+        vaex.from_csv(filepath)[["timestamp", *rename_columns.keys()]]
+        .to_pandas_df()
+        .rename(columns=rename_columns)
     )
+    df["timestamp"] = pd.DatetimeIndex(df["timestamp"])
+    df = df.set_index("timestamp", drop=True)
+    df = df.interpolate(
+        method="time", limit=50, limit_area="inside", limit_direction="both"
+    )
+    df = df.resample("1s").mean()
+    df["t"] = df.index.to_series().diff().median().total_seconds() * np.arange(
+        len(df.index)
+    )
+    df = df[["t", *rename_columns.values()]]
 
     if "hull_u" not in df.columns:
 
@@ -1048,6 +1092,6 @@ def load_boat_data(filepath: str):
 
             return a * motor_v
 
-        df["hull_u"] = boat_speed_from_motor_v(df["batt_v"] * df["pilot_d"])
+        df["hull_u"] = boat_speed_from_motor_v(df["batt_v"] * df["esc_d"])
 
     return df
