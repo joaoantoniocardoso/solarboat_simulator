@@ -8,19 +8,47 @@ This module implements:
 
 References are documented at the function level.
 
-Important: this file is the ground-truth implementation for the thesis text. The
-annotations below aim to document equations, parameter meaning, and SI units
+Important: this file is the ground-truth implementation for the thesis text.
+
+Policy note (thesis traceability):
+- Every equation derived from Birk (2019) or Molland et al. (2017) is cited at the
+  function level.
+- Every relation that is NOT from those sources is explicitly tagged as either:
+  - [ASSUMPTION] modelling approximation, or
+  - [HEURISTIC] numerical/data-cleaning rule, or
+  - [DEFINITION] basic math/unit conversion.
+
+The annotations below aim to document equations, parameter meaning, and SI units
 without changing numerical behavior.
 """
 
 import csv
+import importlib.util
+import sys
 import warnings
+from functools import lru_cache
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import vaex
 
 from utils.data import load_df
 from utils.models import eval_poly
+
+
+@lru_cache(maxsize=1)
+def _get_speed_map_2022():
+    model_path = Path(__file__).resolve().parents[2] / "2022" / "hull" / "model.py"
+    spec = importlib.util.spec_from_file_location(
+        "solarboat_model.models.2022.hull.model", model_path
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Failed to load 2022 hull model from {model_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module.get_2022_motor_voltage_speed_map()
 
 
 def _estimate_bseries_poly_coeffs(prop_PD, prop_AEA0, prop_Z, Rn=2e7):
@@ -50,7 +78,11 @@ def _estimate_bseries_poly_coeffs(prop_PD, prop_AEA0, prop_Z, Rn=2e7):
         where ``J`` is the advance coefficient [-].
 
     Equations
-    1) Base Wageningen B-series polynomial form (Table 5):
+    1) Base Wageningen B-series polynomial form:
+
+       - Birk (2019), Eq. (47.1)–(47.2) (Wageningen B-Series polynomials)
+       - Coefficients/exponents in Birk (2019), Tables 47.2–47.3
+       - Birk attributes these regressions to Oosterveld & van Oossanen (1975).
 
        ``K_T = Σ C * J^s * (P/D)^t * (AE/A0)^u * Z^v``
        ``K_Q = Σ C * J^s * (P/D)^t * (AE/A0)^u * Z^v``
@@ -61,7 +93,12 @@ def _estimate_bseries_poly_coeffs(prop_PD, prop_AEA0, prop_Z, Rn=2e7):
        The local CSV term lists in ``data/kt_terms_wageningen_b_series.csv``
        and ``data/kq_terms_wageningen_b_series.csv`` correspond to Table 5.
 
-    2) Reynolds-number correction (Table 6):
+    2) Reynolds-number correction:
+
+       - Birk (2019), Eq. (47.5)–(47.6): ΔK_T and ΔK_Q (as functions of log10(Re_0.75)-0.301)
+       - Birk (2019), Eq. (47.8): K_TS = K_T + ΔK_T and K_QS = K_Q + ΔK_Q
+       - Coefficients/exponents in Birk (2019), Table 47.5
+       - Birk attributes these regressions to Oosterveld & van Oossanen (1975).
 
        The correction is implemented as an additive polynomial in ``J``:
 
@@ -106,7 +143,10 @@ def _estimate_bseries_poly_coeffs(prop_PD, prop_AEA0, prop_Z, Rn=2e7):
         return np.array(terms)
 
     def polynomial_in_J(terms, PD, AEA0, Z):
-        """Collect term list into an ascending-power polynomial in ``J``."""
+        """Collect term list into an ascending-power polynomial in ``J``.
+
+        [DEFINITION] This is algebraic regrouping (no hydrodynamics model change).
+        """
 
         max_s = int(np.max(terms[:, 1]))
         coeffs = np.zeros(max_s + 1)
@@ -254,7 +294,7 @@ def _estimate_prop_chord_07(prop_D, prop_hub_D, prop_AEA0, prop_Z):
     - [ASSUMPTION] Uses ``c_0.7R ≈ c_mean`` (uniform chord distribution surrogate).
 
     References
-    - None (geometric bookkeeping).
+    - [DEFINITION] Geometric bookkeeping (not from Birk/Molland).
     """
 
     prop_R = prop_D / 2.0
@@ -339,7 +379,7 @@ def _estimate_prop_I_r(
     - Each blade behaves like a slender rod about its root.
 
     References
-    - None (basic rigid-body approximations).
+    - [ASSUMPTION] Basic rigid-body approximations (not from Birk/Molland).
     """
 
     prop_blades_total_m = prop_mat_rho * prop_AE * prop_blade_thickness
@@ -475,6 +515,8 @@ def _estimate_thrust_deduction(hull_W, k_R=0.6):
 def _round_re_to_2e_power(Re):
     """Round a Reynolds number to the nearest ``2*10^x``.
 
+    [HEURISTIC] Reporting convenience only; not from Birk/Molland.
+
     Parameters
     - Re: float
         Reynolds number [-].
@@ -519,10 +561,11 @@ def _estimate_hull_C_T_steady(df, params):
 
     Equations
     - Propeller rev/s: ``n = ω/(2π)``
-    - [ASSUMPTION] Uses ``J = V/(nD)`` (ship speed), not ``V_A``.
+    - Wake fraction definition (Birk 2019, Eq. (32.4)): ``V_A = V(1 - w)``.
+    - Advance ratio used for open-water curves (Birk 2019, Eq. (41.7)): ``J = V_A/(nD)``.
 
-    - Thrust from open-water coefficient:
-      ``T = ρ n² D⁴ K_T`` [N]
+    - [ASSUMPTION] Open-water thrust approximation (thrust identity method):
+      ``T ≈ ρ n² D⁴ K_T(J)`` [N]
 
     - Effective thrust on hull (interaction):
       ``T_eff = (1 - t) T`` [N]
@@ -536,8 +579,15 @@ def _estimate_hull_C_T_steady(df, params):
       ``C_T = 2*T_eff / (V² * S_eff)``.
 
     References
-    - ``K_T`` definition is standard in propeller theory.
-      (No additional reference used here; this step is a data-fit for this project.)
+    - Birk (2019), Chapter 32:
+      - Eq. (32.4): wake fraction definition ``w = (V - V_A)/V``.
+      - Eq. (32.2)–(32.3): thrust deduction relation, rearranged as ``T_E = (1-t)T``.
+    - Birk (2019), Chapter 41 (open-water propeller definitions):
+      - Eq. (41.7): advance ratio ``J = V_A/(nD)``.
+      - Eq. (41.12)–(41.13): thrust/torque coefficients ``K_T`` and ``K_Q``.
+      - Eq. (41.15): open-water efficiency ``η_0 = (J K_T)/(2π K_Q)``.
+    - Molland et al. (2017):
+      - Eq. (12.2): open-water efficiency ``η_0 = (J K_T)/(2π K_Q)``.
 
     Assumptions / validity
     - [ASSUMPTION] Single combined ``C_T`` applied to combined air+water effective area.
@@ -551,9 +601,11 @@ def _estimate_hull_C_T_steady(df, params):
 
     prop_w = df["motor_w"] * params["trans_k"]
 
-    # Advance coefficient proxy (ship speed): J = V / (nD)
+    # Advance ratio for open-water curves: J = V_A/(nD) with V_A = V(1-w).
     prop_n = prop_w / (2 * np.pi)
-    lam = df["hull_u"] / (prop_n * D + 1e-9)
+    hull_W = float(params.get("hull_W", 0.0))
+    V_A = df["hull_u"] * (1.0 - hull_W)
+    lam = V_A / (prop_n * D + 1e-9)
 
     KT = eval_poly(params["prop_k_T_coeffs"], lam)
 
@@ -565,7 +617,9 @@ def _estimate_hull_C_T_steady(df, params):
     du_abs = np.abs(du)
 
     # Filter invalid operating points (e.g., motor stopped => prop_n ~ 0, J explodes)
-    # Keep J within a plausible band to avoid outlier-dominated C_T.
+    # [HEURISTIC] Data-cleaning thresholds (not from Birk/Molland): chosen to prevent
+    # numerical blow-ups and outlier-dominated C_T fits.
+    # Note: J here is built from V_A = V(1-w), consistent with open-water curves.
     mask = (
         (df["hull_u"] > 0.5)
         & (du_abs < 0.05)
@@ -616,9 +670,12 @@ def _estimate_hull_C_T_dynamic(df, params):
     Equations
     Starting from:
 
-    ``T_eff - R = M * dV/dt``
+    ``T_E - R_T = M * dV/dt``
 
-    with ``R = 0.5 * C_T * V² * S_eff`` and using ``T_eff = (1-t)T``.
+    with ``R_T = 0.5 * C_T * V² * S_eff`` and using ``T_E = (1-t)T``.
+
+    Here ``T`` is approximated from open-water curves evaluated at
+    ``J = V_A/(nD)`` with ``V_A = V(1-w)``.
 
     Rearranged into a linear regression:
 
@@ -627,6 +684,14 @@ def _estimate_hull_C_T_dynamic(df, params):
 
     Estimate ``C_T`` via least squares through the origin:
     ``C_T = (x·y) / (x·x)``.
+
+    References
+    - Birk (2019):
+      - Eq. (32.2)–(32.4): thrust deduction and wake fraction definitions.
+      - Eq. (41.7): advance ratio ``J = V_A/(nD)``.
+      - Eq. (41.12): thrust coefficient definition ``K_T = T/(ρ n² D⁴)``.
+    - Molland et al. (2017):
+      - Eq. (12.2): open-water efficiency and coefficient relationships.
 
     Assumptions
     - Same modeling assumptions as the steady estimator (single combined air+water term).
@@ -640,7 +705,9 @@ def _estimate_hull_C_T_dynamic(df, params):
 
     prop_w = df["motor_w"] * params["trans_k"]
     prop_n = prop_w / (2 * np.pi)
-    lam = df["hull_u"] / (prop_n * D + 1e-9)
+    hull_W = float(params.get("hull_W", 0.0))
+    V_A = df["hull_u"] * (1.0 - hull_W)
+    lam = V_A / (prop_n * D + 1e-9)
     KT = eval_poly(params["prop_k_T_coeffs"], lam)
 
     T_prop = rho_w * (prop_n**2) * (D**4) * KT
@@ -654,6 +721,7 @@ def _estimate_hull_C_T_dynamic(df, params):
     x = 0.5 * S_eff * (df["hull_u"].to_numpy() ** 2)
 
     # Filter invalid operating points (e.g., motor stopped => prop_n ~ 0, J explodes)
+    # [HEURISTIC] Data-cleaning thresholds (not from Birk/Molland).
     mask = (
         np.isfinite(x)
         & np.isfinite(y)
@@ -693,7 +761,7 @@ def _estimate_hull_C_T(params):
     Notes
     - Loads a hard-coded boat dataset path. This helper is intended for the
       propeller parameter initialization notebook/workflow.
-    - Final estimate is the arithmetic mean of the steady and dynamic estimates.
+    - [HEURISTIC] Final estimate is the arithmetic mean of the steady and dynamic estimates.
     """
 
     df = load_boat_data("../../../models/2020/boat_data_50ms.csv")[
@@ -952,6 +1020,7 @@ def estimate_initial_values(
             "trans_k": trans_k,
             "prop_k_T_coeffs": prop_k_T_coeffs,
             "hull_M": hull_M,
+            "hull_W": hull_W,
         }
     )
 
@@ -1036,12 +1105,23 @@ def load_boat_data(filepath: str):
         - ``batt_i_out``: battery output current [A]
         - ``esc_d``: ESC duty cycle [-]
         - ``motor_w``: motor angular speed [rad/s]
-        - ``mppts_p_in``: MPPT input power [W]
+        - ``mppt1_i_in``: MPPT 1 input current [A]
+        - ``mppt2_i_in``: MPPT 2 input current [A]
+        - ``mppt3_i_in``: MPPT 3 input current [A]
+        - ``mppt4_i_in``: MPPT 4 input current [A]
+        - ``mppt1_v_in``: MPPT 1 input voltage [V]
+        - ``mppt2_v_in``: MPPT 2 input voltage [V]
+        - ``mppt3_v_in``: MPPT 3 input voltage [V]
+        - ``mppt4_v_in``: MPPT 4 input voltage [V]
+        - ``mppt1_v_out``: MPPT 1 output voltage [V]
+        - ``mppt2_v_out``: MPPT 2 output voltage [V]
+        - ``mppt3_v_out``: MPPT 3 output voltage [V]
+        - ``mppt4_v_out``: MPPT 4 output voltage [V]
         - ``hull_u``: hull speed [m/s]
 
     Assumptions
     - If ``hull_u`` is not present, it is approximated from ``batt_v * esc_d``.
-      [ASSUMPTION] This is a project-specific surrogate relationship.
+      [ASSUMPTION] This is a project-specific surrogate relationship (2022 motor_v→speed map).
 
     Notes
     - Confirmed: the raw data column "Motor Angular Speed" is in [rad/s].
@@ -1049,10 +1129,21 @@ def load_boat_data(filepath: str):
 
     rename_columns = {
         "Battery Pack Voltage": "batt_v",
-        "Battery Output Current": "batt_i_out",
+        "Battery Current": "batt_i",
         "ESC Duty Cycle": "esc_d",
         "Motor Angular Speed": "motor_w",
-        "MPPTs Input Power": "mppts_p_in",
+        "MPPT 1 Input Current": "mppt1_i_in",
+        "MPPT 2 Input Current": "mppt2_i_in",
+        "MPPT 3 Input Current": "mppt3_i_in",
+        "MPPT 4 Input Current": "mppt4_i_in",
+        "MPPT 1 Input Voltage": "mppt1_v_in",
+        "MPPT 2 Input Voltage": "mppt2_v_in",
+        "MPPT 3 Input Voltage": "mppt3_v_in",
+        "MPPT 4 Input Voltage": "mppt4_v_in",
+        "MPPT 1 Output Voltage": "mppt1_v_out",
+        "MPPT 2 Output Voltage": "mppt2_v_out",
+        "MPPT 3 Output Voltage": "mppt3_v_out",
+        "MPPT 4 Output Voltage": "mppt4_v_out",
     }
 
     df = (
@@ -1062,6 +1153,7 @@ def load_boat_data(filepath: str):
     )
     df["timestamp"] = pd.DatetimeIndex(df["timestamp"])
     df = df.set_index("timestamp", drop=True)
+    # [HEURISTIC] Time interpolation/resampling for a smoother dataset.
     df = df.interpolate(
         method="time", limit=50, limit_area="inside", limit_direction="both"
     )
@@ -1072,26 +1164,9 @@ def load_boat_data(filepath: str):
     df = df[["t", *rename_columns.values()]]
 
     if "hull_u" not in df.columns:
-
-        def boat_speed_from_motor_v(motor_v, a=0.54340307 / 3.6):
-            """Project-specific surrogate mapping from voltage to boat speed.
-
-            Parameters
-            - motor_v: float or array-like
-                Voltage surrogate [V].
-            - a: float
-                Conversion coefficient with units [m/(s·V)].
-
-            Returns
-            - float or array-like
-                Estimated speed [m/s].
-
-            Assumptions
-            - [ASSUMPTION] Linear mapping is valid in the dataset regime.
-            """
-
-            return a * motor_v
-
-        df["hull_u"] = boat_speed_from_motor_v(df["batt_v"] * df["esc_d"])
+        speed_map_2022 = _get_speed_map_2022()
+        df["hull_u"] = speed_map_2022.speed_mps_from_motor_v(
+            df["batt_v"] * df["esc_d"], clip=True
+        )
 
     return df
