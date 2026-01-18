@@ -122,7 +122,10 @@ def _estimate_bseries_poly_coeffs(prop_PD, prop_AEA0, prop_Z, Rn=2e7):
           effect (above ``Rn = 2*10^6``) on ``K_T`` and ``K_Q``.
     """
 
-    def load_terms(filepath):
+    # Resolve data directory relative to this file (works from any cwd)
+    _DATA_DIR = Path(__file__).resolve().parent / "data"
+
+    def load_terms(filename):
         """Load polynomial terms from CSV.
 
         CSV format: columns ``C, s, t, u, v``.
@@ -133,6 +136,7 @@ def _estimate_bseries_poly_coeffs(prop_PD, prop_AEA0, prop_Z, Rn=2e7):
         All quantities are dimensionless.
         """
 
+        filepath = _DATA_DIR / filename
         terms = []
         with open(filepath, newline="") as f:
             reader = csv.reader(f)
@@ -236,8 +240,8 @@ def _estimate_bseries_poly_coeffs(prop_PD, prop_AEA0, prop_Z, Rn=2e7):
         return out
 
     # Table 5 term lists (dimensionless coefficients and exponents).
-    KT_TERMS = load_terms("data/kt_terms_wageningen_b_series.csv")
-    KQ_TERMS = load_terms("data/kq_terms_wageningen_b_series.csv")
+    KT_TERMS = load_terms("kt_terms_wageningen_b_series.csv")
+    KQ_TERMS = load_terms("kq_terms_wageningen_b_series.csv")
 
     base_KT = polynomial_in_J(KT_TERMS, prop_PD, prop_AEA0, prop_Z)
     base_KQ = polynomial_in_J(KQ_TERMS, prop_PD, prop_AEA0, prop_Z)
