@@ -89,10 +89,10 @@
   "prop_rpm": 1708.941676463427,
   "prop_va": 4.101066790697947,
   "prop_w": 178.9599538730309,
-  "system_eta_available_to_prop": 1.0489978760314869,
+  "system_eta_available_to_prop": 1.0931662076538655,
   "system_eta_elec_to_prop": 0.9494456927139321,
-  "trans_P_out": 3603.7427437471188,
-  "trans_eta": 0.99,
+  "trans_P_out": 3458.1369763229923,
+  "trans_eta": 0.95,
   "trans_k": 0.6363636363636364,
   "water_mu": 0.0009268,
   "water_rho": 1023
