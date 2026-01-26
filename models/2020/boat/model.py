@@ -67,7 +67,7 @@ class SolarBoat:
         esc_E_on = params["esc_E_on"]
         esc_E_off = params["esc_E_off"]
         esc_V_F = params["esc_V_F"]
-        esc_r_D = params["esc_r_D"]
+        esc_R_D = params["esc_R_D"]
         esc_Q_rr = params["esc_Q_rr"]
         batt_R_0 = params["batt_R_0"]
         batt_N_S = params["batt_N_S"]
@@ -113,8 +113,8 @@ class SolarBoat:
                 - 4 * batt_R_0 * esc_R_ds_on * esc_d * motor_i**2
                 + 4 * batt_R_0 * esc_V_F * esc_d * motor_i
                 - 4 * batt_R_0 * esc_V_F * motor_i
-                + 4 * batt_R_0 * esc_r_D * esc_d * motor_i**2
-                - 4 * batt_R_0 * esc_r_D * motor_i**2
+                + 4 * batt_R_0 * esc_R_D * esc_d * motor_i**2
+                - 4 * batt_R_0 * esc_R_D * motor_i**2
                 + 4 * batt_R_0 * mppts_n * pv_S * mppt_eta * pv_eta * pv_g
                 - 4 * batt_R_0 * oth_p_in
             )
@@ -133,7 +133,7 @@ class SolarBoat:
             + esc_F_s * (esc_E_off + esc_E_on) * (esc_V_ds_ov + 1)
             + esc_R_ds_on * esc_d * motor_i**2
             - esc_V_F * (esc_d - 1) * motor_i
-            - esc_r_D * (esc_d - 1) * motor_i**2
+            - esc_R_D * (esc_d - 1) * motor_i**2
             + esc_d * motor_i * batt_v
         ) / batt_v_safe
 
@@ -362,7 +362,7 @@ class SolarBoatFull:
         esc_E_on = params["esc_E_on"]
         esc_E_off = params["esc_E_off"]
         esc_V_F = params["esc_V_F"]
-        esc_r_D = params["esc_r_D"]
+        esc_R_D = params["esc_R_D"]
         esc_Q_rr = params["esc_Q_rr"]
 
         esc_i_M_RMS = math.sqrt(max(esc_d, 0.0)) * esc_i_out
@@ -371,7 +371,7 @@ class SolarBoatFull:
 
         esc_v_ds_sw = (esc_V_ds_ov + 1.0) * esc_v_in
         esc_p_M_cond = esc_R_ds_on * esc_i_M_RMS**2
-        esc_p_D_cond = esc_V_F * esc_i_D_AVG + esc_r_D * esc_i_D_RMS**2
+        esc_p_D_cond = esc_V_F * esc_i_D_AVG + esc_R_D * esc_i_D_RMS**2
         esc_p_M_sw = esc_F_s * (esc_E_off + esc_E_on) * esc_v_ds_sw / batt_v_safe
         esc_p_D_sw = esc_F_s * esc_Q_rr * esc_v_ds_sw
         esc_p_loss = esc_p_D_cond + esc_p_D_sw + esc_p_M_cond + esc_p_M_sw
@@ -570,7 +570,7 @@ class SolarBoatInternalSignalModel:
         esc_E_on = params["esc_E_on"]
         esc_E_off = params["esc_E_off"]
         esc_V_F = params["esc_V_F"]
-        esc_r_D = params["esc_r_D"]
+        esc_R_D = params["esc_R_D"]
         esc_Q_rr = params["esc_Q_rr"]
 
         batt_v_term = float(batt_v)
@@ -581,7 +581,7 @@ class SolarBoatInternalSignalModel:
             + esc_F_s * (esc_E_off + esc_E_on) * (esc_V_ds_ov + 1.0)
             + esc_R_ds_on * esc_d * motor_i_term**2
             - esc_V_F * (esc_d - 1.0) * motor_i_term
-            - esc_r_D * (esc_d - 1.0) * motor_i_term**2
+            - esc_R_D * (esc_d - 1.0) * motor_i_term**2
             + esc_d * motor_i_term * batt_v_term
         )
         return num / batt_v_safe
@@ -771,7 +771,7 @@ class SolarBoatInternalSignalModel:
         esc_E_on = params["esc_E_on"]
         esc_E_off = params["esc_E_off"]
         esc_V_F = params["esc_V_F"]
-        esc_r_D = params["esc_r_D"]
+        esc_R_D = params["esc_R_D"]
         esc_Q_rr = params["esc_Q_rr"]
         batt_k_V_OC_coeffs = params["batt_k_V_OC_coeffs"]
         pv_S = params["pv_S"]
@@ -864,7 +864,7 @@ class SolarBoatInternalSignalModel:
 
         esc_v_ds_sw = (esc_V_ds_ov + 1.0) * esc_v_in
         esc_p_M_cond = esc_R_ds_on * esc_i_M_RMS**2
-        esc_p_D_cond = esc_V_F * esc_i_D_AVG + esc_r_D * esc_i_D_RMS**2
+        esc_p_D_cond = esc_V_F * esc_i_D_AVG + esc_R_D * esc_i_D_RMS**2
         esc_p_M_sw = esc_F_s * (esc_E_off + esc_E_on) * esc_v_ds_sw / batt_v_safe
         esc_p_D_sw = esc_F_s * esc_Q_rr * esc_v_ds_sw
         esc_p_loss = esc_p_D_cond + esc_p_D_sw + esc_p_M_cond + esc_p_M_sw

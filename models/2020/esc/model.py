@@ -15,7 +15,7 @@ class ESC:
         esc_E_on = params["esc_E_on"]
         esc_E_off = params["esc_E_off"]
         esc_V_F = params["esc_V_F"]
-        esc_r_D = params["esc_r_D"]
+        esc_R_D = params["esc_R_D"]
         esc_Q_rr = params["esc_Q_rr"]
 
         esc_v_in = float(u[0])
@@ -45,7 +45,7 @@ class ESC:
         esc_i_d_avg = (1.0 - esc_d) * esc_i_out
 
         esc_p_m_c = esc_i_m_rms**2 * esc_R_ds_on
-        esc_p_d_c = esc_V_F * esc_i_d_avg + esc_r_D * esc_i_d_rms**2
+        esc_p_d_c = esc_V_F * esc_i_d_avg + esc_R_D * esc_i_d_rms**2
 
         esc_p_m_sw = (esc_E_on + esc_E_off) * esc_F_s * (esc_vds_sw / esc_v_in)
         esc_p_d_sw = esc_Q_rr * esc_vds_sw * esc_F_s

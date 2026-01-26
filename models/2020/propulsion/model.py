@@ -168,7 +168,7 @@ class Propulsion:
         esc_E_on = params["esc_E_on"]
         esc_E_off = params["esc_E_off"]
         esc_V_F = params["esc_V_F"]
-        esc_r_D = params["esc_r_D"]
+        esc_R_D = params["esc_R_D"]
         esc_Q_rr = params["esc_Q_rr"]
 
         batt_v = u[0]  # Battery voltage [V]
@@ -200,7 +200,7 @@ class Propulsion:
                 + esc_F_s * (esc_E_off + esc_E_on) * (esc_V_ds_ov + 1)
                 + esc_R_ds_on * esc_d * motor_i**2
                 - esc_V_F * (esc_d - 1) * motor_i
-                - esc_r_D * (esc_d - 1) * motor_i**2
+                - esc_R_D * (esc_d - 1) * motor_i**2
                 + esc_d * motor_i * batt_v
             ) / batt_v
         esc_i_in = max(0, esc_i_in)  # Clamp: this is a 1st-quadrant-only chopper
