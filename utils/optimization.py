@@ -33,9 +33,9 @@ class MyOptimizationProblem(ElementwiseProblem):
         variable_weights=None,
         **kwargs,
     ):
-        assert all(
-            "min" in pb and "max" in pb for pb in opt_params_bounds.values()
-        ), "All opt_params_bounds must have 'min' and 'max' keys"
+        assert all("min" in pb and "max" in pb for pb in opt_params_bounds.values()), (
+            "All opt_params_bounds must have 'min' and 'max' keys"
+        )
 
         self.model = model
         self.model_function = model_function
@@ -568,16 +568,50 @@ def plot_optimization_error(
     return fig
 
 
-def compute_metrics(y_true: np.array, y_pred: np.array) -> dict:
-    y_residuals = y_true - y_pred
+def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
+    """Compute regression metrics, ignoring non-finite pairs.
+
+    Any position where either signal is NaN/inf is excluded from metric
+    computation. Residuals keep the original shape and use NaN at excluded
+    positions so time alignment is preserved for plotting.
+    """
+
+    y_true_arr = np.asarray(y_true, dtype=float)
+    y_pred_arr = np.asarray(y_pred, dtype=float)
+    if y_true_arr.shape != y_pred_arr.shape:
+        raise ValueError(
+            f"y_true and y_pred must have same shape, got {y_true_arr.shape} and {y_pred_arr.shape}"
+        )
+
+    valid_mask = np.isfinite(y_true_arr) & np.isfinite(y_pred_arr)
+    y_residuals = y_true_arr - y_pred_arr
+    y_residuals[~valid_mask] = np.nan
+
+    if not valid_mask.any():
+        return dict(
+            residuals=y_residuals,
+            MSE=float(np.nan),
+            MAE=float(np.nan),
+            RMSE=float(np.nan),
+            AE=float(np.nan),
+            R2=float(np.nan),
+        )
+
+    y_true_valid = y_true_arr[valid_mask]
+    y_pred_valid = y_pred_arr[valid_mask]
+    y_residuals_valid = y_true_valid - y_pred_valid
+
+    r2 = float(np.nan)
+    if y_true_valid.size >= 2:
+        r2 = r2_score(y_true_valid, y_pred_valid)
 
     return dict(
         residuals=y_residuals,
-        MSE=mean_squared_error(y_true, y_pred),
-        MAE=mean_absolute_error(y_true, y_pred),
-        RMSE=root_mean_squared_error(y_true, y_pred),
-        AE=np.sum(y_residuals),
-        R2=r2_score(y_true, y_pred),
+        MSE=mean_squared_error(y_true_valid, y_pred_valid),
+        MAE=mean_absolute_error(y_true_valid, y_pred_valid),
+        RMSE=root_mean_squared_error(y_true_valid, y_pred_valid),
+        AE=float(np.sum(y_residuals_valid)),
+        R2=r2,
     )
 
 
